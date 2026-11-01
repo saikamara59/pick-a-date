@@ -10,11 +10,27 @@ import { IntroScreen } from '../invite/screens'
 import { CopyIcon, Cross, Eye, LinkIcon, Plus, TicketLogo, Toggle } from '../components/ui'
 
 const STORAGE_KEY = 'pick-a-date:draft'
+/** Bump when default options change, so saved drafts pick up new presets once. */
+const PRESETS_VERSION = 2
+const VERSION_KEY = 'pick-a-date:presets'
 
 function loadDraft(): Draft {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return { ...defaultDraft(), ...(JSON.parse(raw) as Partial<Draft>) }
+    if (raw) {
+      const saved = { ...defaultDraft(), ...(JSON.parse(raw) as Partial<Draft>) }
+      if (Number(localStorage.getItem(VERSION_KEY) ?? 1) < PRESETS_VERSION) {
+        // Add new default options to his saved questions, keeping his edits.
+        const defaults = defaultDraft().categories
+        saved.categories = saved.categories.map((c) => {
+          const def = defaults.find((d) => d.id === c.id)
+          if (!def) return c
+          const extra = def.options.filter((o) => !c.options.some((x) => x.toLowerCase() === o.toLowerCase()))
+          return { ...c, options: [...c.options, ...extra].slice(0, 12) }
+        })
+      }
+      return saved
+    }
   } catch {
     /* storage unavailable or corrupt: start fresh */
   }
@@ -42,6 +58,7 @@ export function Creator() {
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(draft))
+      localStorage.setItem(VERSION_KEY, String(PRESETS_VERSION))
     } catch {
       /* not fatal */
     }
