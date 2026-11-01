@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Category, Invite, Pick } from '../types'
 import { AREAS, AREA_BY_ID, type AreaId } from '../lib/areas'
-import { isSurprise, optionNote } from '../lib/presets'
+import { isSurprise } from '../lib/presets'
 import { ArrowRight, Grain, Question, Ring, StepTop } from '../components/ui'
 
 const SELECT_DELAY = 420
@@ -86,7 +86,7 @@ export function IntroScreen({
       </div>
       <div className="intro-body">
         <div className="blob" aria-hidden="true" />
-        <span className="lbl kicker">You’re invited, obviously</span>
+        <span className="lbl kicker">You’re invited</span>
         <h1
           className="riso-name"
           // Size the name to fit one line on a phone, whatever its length.
@@ -156,7 +156,7 @@ export function AreaStep({
     <section className="screen">
       <Grain />
       <StepTop {...nav} />
-      <Question eyebrow="Step one">Where are we meeting up?</Question>
+      <Question eyebrow="Where">Where are we meeting up?</Question>
       <div className="menu">
         {list.map((a) => {
           const on = sel === a.id
@@ -246,7 +246,6 @@ export function ChoiceStep({
         {cat.options.map((opt) => {
           const on = sel === opt && !typing
           const dim = (!!sel && !on) || typing
-          const note = optionNote(opt, from)
           return (
             <button
               key={opt}
@@ -263,8 +262,6 @@ export function ChoiceStep({
                 {opt}
                 {on && <Ring />}
               </b>
-              <i className="lead" aria-hidden="true" />
-              {note && <em>{note}</em>}
             </button>
           )
         })}
