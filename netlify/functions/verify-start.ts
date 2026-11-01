@@ -2,7 +2,7 @@
 // Stateless: the response carries a signed token the check step validates; nothing is stored but rate limits.
 import { randomInt } from 'node:crypto'
 import { EMAIL_RE } from '../../src/lib/codec'
-import { handle, allow, clientIp, esc, json, readJson, sendEmail, sign } from '../lib/server'
+import { handle, allow, clientIp, esc, json, readJson, refund, sendEmail, sign } from '../lib/server'
 
 const TTL_MINUTES = 10
 
@@ -13,13 +13,25 @@ export default handle(async (req: Request, context: { ip?: string }) => {
   if (!EMAIL_RE.test(email)) return json({ error: 'That doesn’t look like an email address.' }, 400)
 
   // Keep this from being used to spam inboxes.
-  if (!(await allow(`vs-ip:${clientIp(req, context)}`, 6, 3600)) || !(await allow(`vs-email:${email}`, 3, 3600))) {
-    return json({ error: 'Too many codes sent. Try again in an hour.' }, 429)
+  // Only codes that actually went out count against the limits (see refund below).
+  const ipKey = `vs2-ip:${clientIp(req, context)}`
+  const emailKey = `vs2-email:${email}`
+  if (!(await allow(ipKey, 10, 3600))) return json({ error: 'Too many codes sent. Try again in an hour.' }, 429)
+  if (!(await allow(emailKey, 5, 3600))) {
+    await refund(ipKey)
+    return json({ error: 'Too many codes sent to this email. Try again in an hour.' }, 429)
   }
 
   const code = String(randomInt(0, 1_000_000)).padStart(6, '0')
   const exp = Date.now() + TTL_MINUTES * 60_000
-  const token = sign(`verify|v1|${email}|${code}|${exp}`)
+  let token: string
+  try {
+    token = sign(`verify|v1|${email}|${code}|${exp}`)
+  } catch (err) {
+    await refund(ipKey)
+    await refund(emailKey)
+    throw err
+  }
 
   try {
     await sendEmail({
@@ -32,6 +44,8 @@ export default handle(async (req: Request, context: { ip?: string }) => {
 <p style="color:#5d5a78">It expires in ${TTL_MINUTES} minutes. If you didn’t ask for this, ignore this email.</p></div>`,
     })
   } catch (err) {
+    await refund(ipKey)
+    await refund(emailKey)
     return json({ error: (err as Error).message || 'Couldn’t send the code right now.' }, 502)
   }
 

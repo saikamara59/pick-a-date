@@ -68,6 +68,13 @@ export async function allow(key: string, limit: number, windowSeconds: number): 
   return true
 }
 
+/** Give back a hit, e.g. when the email it allowed never went out. */
+export async function refund(key: string): Promise<void> {
+  const store = getStore('rate-limits')
+  const rec = (await store.get(key, { type: 'json' })) as { n: number; start: number } | null
+  if (rec && rec.n > 0) await store.setJSON(key, { n: rec.n - 1, start: rec.start })
+}
+
 export interface Attachment {
   filename: string
   content: string // base64
