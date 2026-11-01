@@ -8,6 +8,46 @@ export const SPOT_CATEGORY_IDS = new Set(['food', 'activity'])
 
 export const isSurprise = (value: string) => /surprise/i.test(value)
 
+/** One-liners shown after the dotted leader on the menu. Options without one just show the leader. */
+const NOTES: Record<string, string> = {
+  tacos: 'messy, worth it',
+  sushi: 'a little fancy',
+  pizza: 'never wrong',
+  ramen: 'cozy',
+  brunch: 'daytime date',
+  'nice dinner': 'dress up a bit',
+  steakhouse: 'going all out',
+  italian: 'pasta, candles',
+  seafood: 'oysters, maybe',
+  burgers: 'easy and good',
+  dessert: 'just dessert',
+  'mini golf': 'a little competitive',
+  museum: 'look smart',
+  'arcade bar': 'bring quarters',
+  'walk the park': 'just talk',
+  movie: 'snacks required',
+  karaoke: 'no judging',
+  bowling: 'bumpers optional',
+  'comedy show': 'laugh together',
+  'rooftop bar': 'city views',
+  'escape room': 'teamwork test',
+  'ice skating': 'hold hands, for balance',
+  'pottery class': 'make a mess',
+  chill: 'nothing to prove',
+  'a little fancy': 'dress up',
+  adventurous: 'something new',
+  'lowkey cozy': 'soft and slow',
+  weeknight: 'after work',
+  'friday night': 'start the weekend',
+  saturday: 'whole day open',
+  'sunday afternoon': 'slow day',
+}
+
+export function optionNote(option: string, from: string): string | undefined {
+  if (isSurprise(option)) return `trust ${from}`
+  return NOTES[option.trim().toLowerCase()]
+}
+
 export function defaultDraft(): Draft {
   return {
     from: '',
@@ -20,7 +60,20 @@ export function defaultDraft(): Draft {
         id: 'food',
         label: 'Food',
         question: 'First things first. What are we eating?',
-        options: ['Tacos', 'Sushi', 'Pizza', 'Ramen', 'Brunch', 'Surprise me'],
+        options: [
+          'Tacos',
+          'Sushi',
+          'Pizza',
+          'Ramen',
+          'Brunch',
+          'Nice dinner',
+          'Steakhouse',
+          'Italian',
+          'Seafood',
+          'Burgers',
+          'Dessert',
+          'Surprise me',
+        ],
         spots: true,
         on: true,
       },
@@ -63,6 +116,6 @@ export function defaultDraft(): Draft {
       },
     ],
     note: true,
-    theme: 'cherry',
+    theme: 'riso',
   }
 }

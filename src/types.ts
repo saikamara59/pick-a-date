@@ -1,7 +1,7 @@
 import type { AreaId } from './lib/areas'
 import type { Place } from './lib/places'
 
-export type ThemeId = 'cherry' | 'plum' | 'midnight'
+export type ThemeId = 'riso' | 'stationery' | 'night'
 export type ReplyKind = 'sms' | 'ig' | 'none'
 
 export interface Category {

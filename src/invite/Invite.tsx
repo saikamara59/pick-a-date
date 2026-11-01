@@ -125,6 +125,7 @@ export function Invite({ inv, serial }: { inv: InviteData; serial: string }) {
           key={key}
           nav={nav}
           cat={step.cat}
+          from={inv.from}
           value={answers.picks[step.cat.id]}
           onPick={(p: Pick) =>
             commit((a) => {

@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Draft, ReplyKind, ThemeId } from '../types'
 import { AREAS, type AreaId } from '../lib/areas'
-import { defaultDraft, SPOT_CATEGORY_IDS } from '../lib/presets'
+import { defaultDraft, isSurprise, SPOT_CATEGORY_IDS } from '../lib/presets'
 import { cleanReply, draftToInvite, encodeInvite, inviteUrl, serialFor } from '../lib/codec'
 import { copyText } from '../lib/share'
 import { buildSteps } from '../invite/Invite'
@@ -11,22 +11,28 @@ import { CopyIcon, Cross, Eye, LinkIcon, Plus, TicketLogo, Toggle } from '../com
 
 const STORAGE_KEY = 'pick-a-date:draft'
 /** Bump when default options change, so saved drafts pick up new presets once. */
-const PRESETS_VERSION = 2
+const PRESETS_VERSION = 3
 const VERSION_KEY = 'pick-a-date:presets'
+const LEGACY_THEMES: Record<string, ThemeId> = { cherry: 'riso', plum: 'stationery', midnight: 'night' }
 
 function loadDraft(): Draft {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) {
       const saved = { ...defaultDraft(), ...(JSON.parse(raw) as Partial<Draft>) }
+      saved.theme = LEGACY_THEMES[saved.theme] ?? saved.theme
       if (Number(localStorage.getItem(VERSION_KEY) ?? 1) < PRESETS_VERSION) {
         // Add new default options to his saved questions, keeping his edits.
+        // "Surprise me" stays last; the list is capped at 12.
         const defaults = defaultDraft().categories
         saved.categories = saved.categories.map((c) => {
           const def = defaults.find((d) => d.id === c.id)
           if (!def) return c
           const extra = def.options.filter((o) => !c.options.some((x) => x.toLowerCase() === o.toLowerCase()))
-          return { ...c, options: [...c.options, ...extra].slice(0, 12) }
+          const all = [...c.options, ...extra]
+          const surprise = all.filter(isSurprise)
+          const rest = all.filter((o) => !isSurprise(o))
+          return { ...c, options: [...rest.slice(0, 12 - surprise.length), ...surprise].slice(0, 12) }
         })
       }
       return saved
@@ -37,10 +43,10 @@ function loadDraft(): Draft {
   return defaultDraft()
 }
 
-const THEMES: { id: ThemeId; name: string; bg: string; dot: string; ring?: string }[] = [
-  { id: 'cherry', name: 'Cherry', bg: '#FBF8F5', dot: '#C8102E', ring: '#E7DDD9' },
-  { id: 'plum', name: 'Plum', bg: '#F8ECEE', dot: '#5A1A4E', ring: '#E6CFD6' },
-  { id: 'midnight', name: 'Midnight', bg: '#0F0E11', dot: '#FF8AAE' },
+const THEMES: { id: ThemeId; name: string; note: string; bg: string; dot: string; ring?: string }[] = [
+  { id: 'riso', name: 'Riso', note: 'printed poster', bg: '#F6F3EE', dot: '#FF4F9E', ring: '#CFC9DA' },
+  { id: 'stationery', name: 'Stationery', note: 'letterpress card', bg: '#FCFBF9', dot: '#4A1420', ring: '#E5D6D6' },
+  { id: 'night', name: 'Late Night', note: 'dark, soft glow', bg: '#121015', dot: '#FF7FA8' },
 ]
 
 const REPLY: { id: ReplyKind; label: string }[] = [
@@ -108,7 +114,7 @@ export function Creator() {
   const onCount = draft.categories.filter((c) => c.on).length
 
   return (
-    <div className="creator t-cherry">
+    <div className="creator t-riso">
       <header className="c-header">
         <div className="brand">
           <TicketLogo />
@@ -336,7 +342,8 @@ export function Creator() {
                         >
                           <b style={{ background: t.dot }} />
                         </i>
-                        {t.name}
+                        <span className="sw-name">{t.name}</span>
+                        <span className="sw-note">{t.note}</span>
                       </button>
                     )
                   })}

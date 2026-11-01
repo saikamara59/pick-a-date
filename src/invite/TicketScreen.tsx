@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { Answers, Invite } from '../types'
 import { AREA_BY_ID } from '../lib/areas'
 import { acceptMessage, copyText, replyHref } from '../lib/share'
-import { Chat } from '../components/ui'
+import { Chat, Grain } from '../components/ui'
 
 export function TicketScreen({
   inv,
@@ -18,7 +18,6 @@ export function TicketScreen({
   const [copied, setCopied] = useState(false)
   const message = acceptMessage(inv, answers)
   const href = replyHref(inv, message)
-  const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
   const copy = async () => {
     if (await copyText(message)) {
@@ -29,76 +28,73 @@ export function TicketScreen({
 
   return (
     <section className="screen">
+      <Grain />
       <div className="ticket-head">
-        <span className="mono eyebrow">All set</span>
+        <span className="lbl kicker">All set</span>
         <h1 className="plan-title">Here’s the plan.</h1>
       </div>
 
-      <div className="printer">
-        <div className="slot" />
-        <div className="feed">
-          <article className="ticket" aria-label="Your date ticket">
-            <div className="tk-top">
-              <div className="tk-meta">
-                <span>Admit two</span>
-                <span>No. {serial}</span>
-              </div>
-              <div className="tk-names">
-                {inv.to} &amp; {inv.from}
-              </div>
-              <div className="tk-sub">
-                Picked by {inv.to} · {date}
-              </div>
-            </div>
-            <div className="perf">
-              <i />
-            </div>
-            <div className="rows">
-              {answers.area && (
-                <div className="row">
-                  <b>Where</b>
-                  <span>{AREA_BY_ID[answers.area].label}</span>
-                </div>
-              )}
-              {inv.categories.map((c) => {
-                const pick = answers.picks[c.id]
-                if (!pick) return null
-                const spot = answers.spots[c.id]
-                return (
-                  <div className="row" key={c.id}>
-                    <b>{c.label}</b>
-                    {spot?.kind === 'place' ? (
-                      <span>
-                        {spot.place.name}
-                        <em>{spot.place.address}</em>
-                        <a href={spot.place.mapsUrl} target="_blank" rel="noreferrer">
-                          Open in Maps
-                        </a>
-                      </span>
-                    ) : (
-                      <span>
-                        {pick.value}
-                        {spot?.kind === 'surprise' && <em>{inv.from} picks the spot</em>}
-                        {spot?.kind === 'tbd' && <em>Spot TBD</em>}
-                      </span>
-                    )}
-                  </div>
-                )
-              })}
-              {answers.note && (
-                <div className="row">
-                  <b>Note</b>
-                  <span>{answers.note}</span>
-                </div>
-              )}
-            </div>
-          </article>
+      <article className="ticket" aria-label="Your date ticket">
+        <div className="tk-top">
+          <div className="tk-meta">
+            <span className="lbl">Admit two</span>
+            <span className="lbl">№ {serial}</span>
+          </div>
+          <div className="tk-names">
+            {inv.to}
+            <br />
+            &amp; {inv.from}
+          </div>
         </div>
-      </div>
+        <div className="rows">
+          {answers.area && (
+            <div className="row">
+              <b className="lbl">Where</b>
+              <span>{AREA_BY_ID[answers.area].label}</span>
+            </div>
+          )}
+          {inv.categories.map((c) => {
+            const pick = answers.picks[c.id]
+            if (!pick) return null
+            const spot = answers.spots[c.id]
+            return (
+              <div className="row" key={c.id}>
+                <b className="lbl">{c.label}</b>
+                {spot?.kind === 'place' ? (
+                  <span>
+                    {spot.place.name}
+                    <small>
+                      {spot.place.address} ·{' '}
+                      <a href={spot.place.mapsUrl} target="_blank" rel="noreferrer">
+                        Maps ↗
+                      </a>
+                    </small>
+                  </span>
+                ) : (
+                  <span>
+                    {pick.value}
+                    {spot?.kind === 'surprise' && <small>{inv.from} picks the spot</small>}
+                    {spot?.kind === 'tbd' && <small>Spot TBD</small>}
+                  </span>
+                )}
+              </div>
+            )
+          })}
+          {answers.note && (
+            <div className="row">
+              <b className="lbl">Note</b>
+              <span>{answers.note}</span>
+            </div>
+          )}
+        </div>
+        <div className="stamp" aria-hidden="true">
+          IT’S A DATE
+        </div>
+      </article>
 
       <div className="actions">
         <div className="actions-row">
-          {href ? (
+          {href && (
             <a
               className="btn btn-p"
               style={{ flex: 1 }}
@@ -113,7 +109,7 @@ export function TicketScreen({
               <Chat />
               {inv.reply.kind === 'ig' ? `DM ${inv.from} my picks` : `Text ${inv.from} my picks`}
             </a>
-          ) : null}
+          )}
           <button
             type="button"
             className={`btn ${href ? 'btn-s' : 'btn-p'}`}

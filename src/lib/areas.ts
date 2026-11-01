@@ -6,6 +6,8 @@ export type AreaId = 'manhattan' | 'brooklyn' | 'staten-island' | 'jersey-city-h
 export interface Area {
   id: AreaId
   label: string
+  /** Initials for the round bullet */
+  short: string
   /** Neighborhood hint shown under the area name */
   hint: string
   /** How the area reads inside a search query, e.g. "tacos in Brooklyn, NY" */
@@ -16,6 +18,7 @@ export interface Area {
 export const AREAS: Area[] = [
   {
     id: 'manhattan',
+    short: 'M',
     label: 'Manhattan',
     hint: 'West Village · LES · Harlem',
     queryName: 'Manhattan, NY',
@@ -23,6 +26,7 @@ export const AREAS: Area[] = [
   },
   {
     id: 'brooklyn',
+    short: 'BK',
     label: 'Brooklyn',
     hint: 'Williamsburg · Bushwick · Park Slope',
     queryName: 'Brooklyn, NY',
@@ -30,6 +34,7 @@ export const AREAS: Area[] = [
   },
   {
     id: 'staten-island',
+    short: 'SI',
     label: 'Staten Island',
     hint: 'St. George · Stapleton',
     queryName: 'Staten Island, NY',
@@ -37,6 +42,7 @@ export const AREAS: Area[] = [
   },
   {
     id: 'jersey-city-hoboken',
+    short: 'JC',
     label: 'Jersey City & Hoboken',
     hint: 'Grove St · Downtown JC · Washington St',
     queryName: 'Jersey City or Hoboken, NJ',

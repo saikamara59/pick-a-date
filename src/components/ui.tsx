@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useId, type ReactNode } from 'react'
 
 type IconProps = { size?: number }
 const stroke = { fill: 'none', stroke: 'currentColor', strokeLinecap: 'round', strokeLinejoin: 'round' } as const
@@ -90,15 +90,48 @@ export function StepTop({ onBack, index, total }: { onBack: () => void; index: n
   return (
     <div className="top">
       <button type="button" className="ico" aria-label="Back" onClick={onBack}>
-        <ArrowLeft />
+        <ArrowLeft size={18} />
       </button>
-      <div className="prog" role="progressbar" aria-valuemin={1} aria-valuemax={total} aria-valuenow={index + 1}>
-        <i style={{ width: `${((index + 1) / total) * 100}%` }} />
+      <div className="ticks" role="progressbar" aria-valuemin={1} aria-valuemax={total} aria-valuenow={index + 1}>
+        {Array.from({ length: total }, (_, i) => (
+          <i key={i} className={i <= index ? 'on' : undefined} />
+        ))}
       </div>
-      <span className="cnt">
+      <span className="cnt lbl">
         {index + 1}/{total}
       </span>
     </div>
+  )
+}
+
+/** Paper grain over the whole screen. Color and strength come from the theme. */
+export function Grain() {
+  const id = useId().replace(/:/g, '')
+  return (
+    <svg className="grain" aria-hidden="true">
+      <filter id={`g${id}`}>
+        <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves={2} stitchTiles="stitch" />
+        <feColorMatrix className="grain-tint" values="0 0 0 0 0.13 0 0 0 0 0.12 0 0 0 0 0.29 0 0 0 0.35 0" />
+      </filter>
+      <rect width="100%" height="100%" filter={`url(#g${id})`} />
+    </svg>
+  )
+}
+
+/** A loose hand-drawn loop, drawn around whatever she picked. */
+export function Ring() {
+  return (
+    <svg className="ring" viewBox="0 0 200 62" preserveAspectRatio="none" aria-hidden="true">
+      <path
+        d="M14 34 C10 12, 120 2, 178 14 C204 22, 186 52, 110 56 C46 60, 4 50, 8 30 C11 18, 40 10, 76 8"
+        fill="none"
+        stroke="var(--accent-2)"
+        strokeWidth="3.2"
+        strokeLinecap="round"
+        vectorEffect="non-scaling-stroke"
+        pathLength={1}
+      />
+    </svg>
   )
 }
 

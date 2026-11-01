@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import type { Category, Pick, SpotPick } from '../types'
 import { AREA_BY_ID, type AreaId } from '../lib/areas'
 import { PLACES_ATTRIBUTION, searchPlaces, type Place } from '../lib/places'
-import { ArrowRight, Dice, External, Question, StepTop } from '../components/ui'
+import { ArrowRight, Grain, Question, StepTop } from '../components/ui'
 
 type State = { status: 'loading' } | { status: 'ready'; places: Place[] } | { status: 'error' }
 
@@ -47,9 +47,10 @@ export function SpotStep({
   if (state.status === 'error') {
     return (
       <section className="screen">
+        <Grain />
         <StepTop {...nav} />
         <div className="center-body">
-          <span className="mono eyebrow">
+          <span className="lbl kicker">
             {pick.value} in {areaName}
           </span>
           <h1 className="big-2">We’ll figure out the spot together.</h1>
@@ -73,17 +74,18 @@ export function SpotStep({
   if (state.status === 'ready' && state.places.length === 0) {
     return (
       <section className="screen">
+        <Grain />
         <StepTop {...nav} />
         <Question eyebrow={`${pick.value} in ${areaName}`}>Pick the spot.</Question>
         <div className="pad">
           <div className="empty">
-            <p className="empty-title">Couldn’t find any. Want me to pick?</p>
+            <p className="empty-title">Couldn’t find any. Want {from} to pick?</p>
             <p className="empty-sub">
               Nothing came up for {what} nearby. {from} can find one, or you can change your answer.
             </p>
             <div className="empty-actions">
               <button type="button" className="btn btn-p wide" onClick={() => onDone({ kind: 'surprise' })}>
-                Yes, you pick
+                Yes, {from} picks
               </button>
               <button type="button" className="btn btn-t" onClick={nav.onBack}>
                 Change my answer
@@ -109,73 +111,60 @@ export function SpotStep({
 
   return (
     <section className="screen has-dock">
+      <Grain />
       <StepTop {...nav} />
-      <Question
-        eyebrow={
-          loading
-            ? `Finding ${what} in ${areaName}…`
-            : `${pick.value} in ${areaName} · ${places.length} spot${places.length === 1 ? '' : 's'}`
-        }
-      >
-        Pick the spot.
-      </Question>
+      <Question eyebrow={loading ? `Finding ${what} in ${areaName}…` : `${pick.value} in ${areaName}`}>Pick the spot.</Question>
 
       {loading ? (
-        <div className="list" aria-busy="true" aria-label={`Loading ${what} spots`}>
+        <div className="menu" aria-busy="true" aria-label={`Loading ${what} spots`}>
           {[62, 48, 56, 40, 52].map((w) => (
             <div className="sk" key={w}>
               <i style={{ width: `${w}%` }} />
-              <i style={{ width: `${w + 18}%`, height: 10 }} />
+              <i style={{ width: `${w + 14}%`, height: 10 }} />
             </div>
           ))}
         </div>
       ) : (
-        <div className="list" role="radiogroup" aria-label={`${pick.value} spots in ${areaName}`}>
+        <div className="menu" role="radiogroup" aria-label={`${pick.value} spots in ${areaName}`}>
           {places.map((p) => {
             const on = sel === p.id
             return (
-              <div key={p.id} className={`pl${on ? ' sel' : ''}`}>
-                <button
-                  type="button"
-                  className="pl-main"
-                  role="radio"
-                  aria-checked={on}
-                  onClick={() => setSel(p.id)}
-                >
-                  <span className="pl-name">{p.name}</span>
-                  <span className="pl-meta">{p.address}</span>
-                  {p.type && <span className="pl-type">{p.type}</span>}
+              <div key={p.id} className={`spot${on ? ' sel' : ''}`}>
+                <button type="button" className="spot-main" role="radio" aria-checked={on} onClick={() => setSel(p.id)}>
+                  <b>
+                    <span className="hl-text">{p.name}</span>
+                  </b>
+                  <span>{p.address}</span>
                 </button>
-                <span className="rd" />
                 <a className="maps" href={p.mapsUrl} target="_blank" rel="noreferrer">
-                  View on Maps
-                  <External />
+                  Maps ↗
                 </a>
               </div>
             )
           })}
-          <button
-            type="button"
-            className={`surprise${sel === 'surprise' ? ' sel' : ''}`}
-            role="radio"
-            aria-checked={sel === 'surprise'}
-            onClick={() => setSel('surprise')}
-          >
-            <Dice />
-            <span>
-              You choose, surprise me
-              <small>
-                {from} picks the {what} spot in {areaName}.
-              </small>
-            </span>
-          </button>
+          <div className={`spot last${sel === 'surprise' ? ' sel' : ''}`}>
+            <button
+              type="button"
+              className="spot-main"
+              role="radio"
+              aria-checked={sel === 'surprise'}
+              onClick={() => setSel('surprise')}
+            >
+              <b>
+                <span className="hl-text">Or… {from} picks</span>
+              </b>
+              <span>
+                He finds a {what} spot in {areaName}.
+              </span>
+            </button>
+          </div>
         </div>
       )}
 
       <div className="dock">
         {loading ? (
           <button type="button" className="btn btn-s wide" onClick={() => onDone({ kind: 'surprise' })}>
-            You choose, surprise me
+            {from} picks, skip this
           </button>
         ) : (
           <button type="button" className="btn btn-p wide" disabled={!sel} onClick={next}>

@@ -4,7 +4,14 @@ import LZ from 'lz-string'
 import type { Category, Draft, Invite, ReplyKind, ThemeId } from '../types'
 import { isAreaId, type AreaId } from './areas'
 
-const THEMES: ThemeId[] = ['cherry', 'plum', 'midnight']
+const THEMES: ThemeId[] = ['riso', 'stationery', 'night']
+/** v1 links used these names; keep them opening in the closest v2 theme. */
+const LEGACY_THEMES: Record<string, ThemeId> = { cherry: 'riso', plum: 'stationery', midnight: 'night' }
+
+function cleanTheme(v: unknown): ThemeId {
+  if (THEMES.includes(v as ThemeId)) return v as ThemeId
+  return (typeof v === 'string' && LEGACY_THEMES[v]) || 'riso'
+}
 
 const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
 
@@ -89,7 +96,7 @@ export function decodeInvite(code: string): Invite | null {
       areas,
       categories,
       note: j.note === true,
-      theme: THEMES.includes(j.theme as ThemeId) ? (j.theme as ThemeId) : 'cherry',
+      theme: cleanTheme(j.theme),
     }
   } catch {
     return null
