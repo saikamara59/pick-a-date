@@ -1,32 +1,47 @@
-# React + TypeScript + Vite
+# Pick a Date
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A date-invite generator. You build an invite and text her the link. She picks the area, the food, the activity and real spots, then gets the plan back as a ticket and texts you her picks.
 
-Currently, two official plugins are available:
+No database: the whole invite is compressed into the link. The only server code is one Netlify Function that proxies Google Places so the API key never reaches the browser.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## How it works
 
-## React Compiler
+- **`/`** is the creator. The draft is saved in your browser, and **New invite** keeps your questions but clears her name.
+- **`/i/<code>`** is the invite. `<code>` is the invite JSON compressed with `lz-string`. Every field is re-validated on decode (`src/lib/codec.ts`), so a hand-edited link can't inject anything.
+- **`/api/places`** is `netlify/functions/places.ts`. It calls Places API (New) Text Search with Pro-tier fields only, restricted to the chosen area's bounding box, and caches identical searches at the CDN for an hour.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Areas: Manhattan, Brooklyn, Staten Island, Jersey City & Hoboken (`src/lib/areas.ts`).
 
-## Expanding the Oxlint configuration
+## Develop
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+cp .env.example .env   # add GOOGLE_PLACES_API_KEY
+npx netlify dev        # app + /api/places on one port
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+`npm run dev` also works for UI work, but the spot step will show its "couldn't load places" state without the function.
+
+## Deploy
+
+Netlify builds from `netlify.toml`. Set `GOOGLE_PLACES_API_KEY` under Project configuration → Environment variables.
+
+Google Cloud setup: enable **Places API (New)**, restrict the key to that API only, and set a daily quota cap plus a budget alert.
+
+## Layout
+
+```
+src/
+  creator/Creator.tsx      the form, live preview, link bar
+  invite/Invite.tsx        flow controller and step list
+  invite/screens.tsx       intro, area, choice, note, endings
+  invite/SpotStep.tsx      real places: loading, results, empty, error
+  invite/TicketScreen.tsx  the printed ticket and reply buttons
+  lib/                     areas, codec, presets, places client, share text
+netlify/functions/places.ts
+```
+
+## Notes
+
+- Your phone number or IG handle is not shown on the invite, but it is inside the link. Only send a link to the person it's for.
+- Google requires the "Places data from Google Maps" attribution wherever results show without a Google map.

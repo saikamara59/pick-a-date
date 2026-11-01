@@ -6,6 +6,12 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
+# Invite links look like /i/<code>; the React app reads the code from the path.
+[[redirects]]
+  from = "/i/*"
+  to = "/index.html"
+  status = 200
+
 [dev]
   command = "npm run dev"
   targetPort = 5173
