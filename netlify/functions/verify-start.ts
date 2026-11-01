@@ -2,11 +2,11 @@
 // Stateless: the response carries a signed token the check step validates; nothing is stored but rate limits.
 import { randomInt } from 'node:crypto'
 import { EMAIL_RE } from '../../src/lib/codec'
-import { allow, clientIp, esc, json, readJson, sendEmail, sign } from '../lib/server'
+import { handle, allow, clientIp, esc, json, readJson, sendEmail, sign } from '../lib/server'
 
 const TTL_MINUTES = 10
 
-export default async (req: Request, context: { ip?: string }) => {
+export default handle(async (req: Request, context: { ip?: string }) => {
   const body = await readJson(req)
   if (!body) return json({ error: 'Bad request' }, 400)
   const email = String(body.email ?? '').trim().toLowerCase()
@@ -31,11 +31,11 @@ export default async (req: Request, context: { ip?: string }) => {
 <p style="font-size:32px;font-weight:800;letter-spacing:.12em;margin:8px 0">${esc(code)}</p>
 <p style="color:#5d5a78">It expires in ${TTL_MINUTES} minutes. If you didn’t ask for this, ignore this email.</p></div>`,
     })
-  } catch {
-    return json({ error: 'Couldn’t send the code right now.' }, 502)
+  } catch (err) {
+    return json({ error: (err as Error).message || 'Couldn’t send the code right now.' }, 502)
   }
 
   return json({ exp, token })
-}
+})
 
 export const config = { path: '/api/verify/start' }

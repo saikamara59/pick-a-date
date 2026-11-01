@@ -5,7 +5,7 @@ import { decodeInvite } from '../../src/lib/codec'
 import { AREA_BY_ID, isAreaId } from '../../src/lib/areas'
 import { buildIcs, formatWhen, googleCalendarUrl, isWhenValue, whenToDate, type CalendarEvent } from '../../src/lib/when'
 import type { Answers, Invite, Pick, SpotPick } from '../../src/types'
-import { allow, esc, fromAddress, json, notifyPayload, readJson, sendEmail, verify } from '../lib/server'
+import { handle, allow, esc, fromAddress, json, notifyPayload, readJson, sendEmail, verify } from '../lib/server'
 
 const s = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
 const MAPS_RE = /^https:\/\/(maps\.google\.com|www\.google\.com\/maps|goo\.gl\/maps|maps\.app\.goo\.gl)\//
@@ -62,7 +62,7 @@ function rowsFor(inv: Invite, a: Answers): Row[] {
   return rows
 }
 
-export default async (req: Request) => {
+export default handle(async (req: Request) => {
   const body = await readJson(req)
   if (!body) return json({ error: 'Bad request' }, 400)
   const code = s(body.code, 4000)
@@ -132,11 +132,11 @@ ${gcal ? `<p style="margin:24px 0 0"><a href="${esc(gcal)}" style="display:inlin
           ]
         : undefined,
     })
-  } catch {
-    return json({ error: 'Couldn’t send right now.' }, 502)
+  } catch (err) {
+    return json({ error: (err as Error).message || 'Couldn’t send right now.' }, 502)
   }
 
   return json({ ok: true })
-}
+})
 
 export const config = { path: '/api/notify' }

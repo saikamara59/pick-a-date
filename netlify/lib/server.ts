@@ -5,10 +5,33 @@ import { getStore } from '@netlify/blobs'
 export const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 
+/** An error whose message is safe and useful to show in the app. */
+export class PublicError extends Error {}
+
 export function env(name: string): string {
   const v = process.env[name]
-  if (!v) throw new Error(`Missing env var ${name}`)
+  if (!v) throw new PublicError(`Server setup: ${name} isn't set in Netlify. Add it, then redeploy.`)
   return v
+}
+
+/**
+ * Wraps a function handler so a crash comes back as a readable JSON error
+ * instead of a blank 500, and gets logged in Netlify → Logs → Functions.
+ */
+export function handle<C>(fn: (req: Request, context: C) => Promise<Response>) {
+  return async (req: Request, context: C): Promise<Response> => {
+    try {
+      return await fn(req, context)
+    } catch (err) {
+      console.error(err)
+      if (err instanceof PublicError) return json({ error: err.message }, 500)
+      const name = (err as Error)?.name ?? ''
+      if (/Blobs/i.test(name) || /blobs/i.test(String((err as Error)?.message))) {
+        return json({ error: 'Server setup: Netlify Blobs isn’t available for this site. Redeploy and try again.' }, 500)
+      }
+      return json({ error: `Server error: ${(err as Error)?.message ?? 'unknown'}` }, 500)
+    }
+  }
 }
 
 /** base64url HMAC-SHA256 with SIGNING_SECRET */
@@ -58,8 +81,15 @@ export async function sendEmail(msg: { to: string; subject: string; html: string
     body: JSON.stringify({ from: env('NOTIFY_FROM'), to: [msg.to], subject: msg.subject, html: msg.html, text: msg.text, attachments: msg.attachments }),
   })
   if (!res.ok) {
-    console.error('Resend error', res.status, await res.text())
-    throw new Error('Email failed')
+    const body = await res.text()
+    console.error('Resend error', res.status, body)
+    let reason = ''
+    try {
+      reason = (JSON.parse(body) as { message?: string }).message ?? ''
+    } catch {
+      reason = body.slice(0, 200)
+    }
+    throw new PublicError(`Email service said: ${reason || `error ${res.status}`}`)
   }
 }
 

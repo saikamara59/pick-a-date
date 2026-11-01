@@ -1,8 +1,8 @@
 // POST /api/verify/check { email, code, exp, token } → { sig } to embed in invite links.
 import { EMAIL_RE } from '../../src/lib/codec'
-import { allow, json, notifyPayload, readJson, sign, verify } from '../lib/server'
+import { handle, allow, json, notifyPayload, readJson, sign, verify } from '../lib/server'
 
-export default async (req: Request) => {
+export default handle(async (req: Request) => {
   const body = await readJson(req)
   if (!body) return json({ error: 'Bad request' }, 400)
   const email = String(body.email ?? '').trim().toLowerCase()
@@ -20,6 +20,6 @@ export default async (req: Request) => {
   if (!verify(`verify|v1|${email}|${code}|${exp}`, token)) return json({ error: 'That code doesn’t match.' }, 400)
 
   return json({ email, sig: sign(notifyPayload(email)) })
-}
+})
 
 export const config = { path: '/api/verify/check' }

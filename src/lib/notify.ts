@@ -2,9 +2,15 @@
 import type { Answers } from '../types'
 
 async function post<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+  let res: Response
+  try {
+    res = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+  } catch {
+    throw new Error('Couldn’t reach the server. Check your connection and try again.')
+  }
   const data = (await res.json().catch(() => ({}))) as T & { error?: string }
-  if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Try again.')
+  if (res.status === 404) throw new Error('Server setup: this function isn’t deployed yet. Redeploy on Netlify.')
+  if (!res.ok) throw new Error(data.error ?? `Server error ${res.status}. Check Netlify → Logs → Functions.`)
   return data
 }
 
