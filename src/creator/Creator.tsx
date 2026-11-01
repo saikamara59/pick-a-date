@@ -123,7 +123,7 @@ export function Creator() {
                 <label className="fl" htmlFor="you-name">
                   Your name
                 </label>
-                <input id="you-name" className="in" maxLength={40} value={draft.from} onChange={(e) => set('from', e.target.value)} placeholder="Sai" />
+                <input id="you-name" className="in" maxLength={40} value={draft.from} onChange={(e) => set('from', e.target.value)} placeholder="Your first name" />
               </div>
               <div>
                 <span className="fl" id="reply-l">
@@ -177,7 +177,7 @@ export function Creator() {
                 <label className="fl" htmlFor="her-name">
                   Her name
                 </label>
-                <input id="her-name" className="in" maxLength={40} value={draft.to} onChange={(e) => set('to', e.target.value)} placeholder="Reyanys" />
+                <input id="her-name" className="in" maxLength={40} value={draft.to} onChange={(e) => set('to', e.target.value)} placeholder="Her first name" />
               </div>
               <div>
                 <label className="fl" htmlFor="her-intro">
