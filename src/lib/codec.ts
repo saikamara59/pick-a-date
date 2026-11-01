@@ -3,6 +3,7 @@
 import LZ from 'lz-string'
 import type { Category, Draft, Invite, ReplyKind, ThemeId } from '../types'
 import { isAreaId, type AreaId } from './areas'
+import { parseTime } from './when'
 
 const THEMES: ThemeId[] = ['riso', 'stationery', 'night']
 /** v1 links used these names; keep them opening in the closest v2 theme. */
@@ -33,9 +34,11 @@ export function cleanReply(kind: ReplyKind, value: string): Invite['reply'] {
 function cleanCategory(c: unknown, i: number): Category | null {
   if (!c || typeof c !== 'object') return null
   const o = c as Record<string, unknown>
-  const options = Array.isArray(o.options)
+  const isWhen = o.kind === 'when'
+  let options = Array.isArray(o.options)
     ? [...new Set(o.options.map((x) => str(x, 40)).filter(Boolean))].slice(0, 12)
     : []
+  if (isWhen) options = options.filter((t) => parseTime(t) !== null)
   const label = str(o.label, 24)
   if (!label || options.length === 0) return null
   return {
@@ -43,8 +46,20 @@ function cleanCategory(c: unknown, i: number): Category | null {
     label,
     question: str(o.question, 90) || `${label}?`,
     options,
-    spots: o.spots === true,
+    spots: !isWhen && o.spots === true,
+    ...(isWhen ? { kind: 'when' as const } : {}),
   }
+}
+
+export const EMAIL_RE = /^[^\s@<>()",;:]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}$/
+const SIG_RE = /^[A-Za-z0-9_-]{43}$/
+
+function cleanNotify(v: unknown): Invite['notify'] {
+  if (!v || typeof v !== 'object') return undefined
+  const o = v as Record<string, unknown>
+  const email = str(o.email, 254).toLowerCase()
+  const sig = str(o.sig, 64)
+  return EMAIL_RE.test(email) && SIG_RE.test(sig) ? { email, sig } : undefined
 }
 
 export function draftToInvite(d: Draft): Invite {
@@ -57,9 +72,10 @@ export function draftToInvite(d: Draft): Invite {
     areas: d.areas,
     categories: d.categories
       .filter((c) => c.on && c.options.length > 0)
-      .map(({ id, label, question, options, spots }) => ({ id, label, question, options, spots })),
+      .map(({ id, label, question, options, spots, kind }) => ({ id, label, question, options, spots, ...(kind ? { kind } : {}) })),
     note: d.note,
     theme: d.theme,
+    ...(d.notify?.sig ? { notify: { email: d.notify.email, sig: d.notify.sig } } : {}),
   }
 }
 
@@ -97,6 +113,7 @@ export function decodeInvite(code: string): Invite | null {
       categories,
       note: j.note === true,
       theme: cleanTheme(j.theme),
+      ...(cleanNotify(j.notify) ? { notify: cleanNotify(j.notify) } : {}),
     }
   } catch {
     return null

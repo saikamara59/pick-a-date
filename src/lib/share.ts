@@ -1,5 +1,6 @@
 import type { Answers, Invite } from '../types'
 import { AREA_BY_ID } from './areas'
+import { formatWhen } from './when'
 
 export function planLines(inv: Invite, a: Answers): string[] {
   const lines: string[] = []
@@ -13,7 +14,7 @@ export function planLines(inv: Invite, a: Answers): string[] {
     } else if (spot?.kind === 'surprise') {
       lines.push(`${c.label}: ${pick.value}, you pick the spot`)
     } else {
-      lines.push(`${c.label}: ${pick.value}`)
+      lines.push(`${c.label}: ${formatWhen(pick.value)}`)
     }
   }
   if (a.note.trim()) lines.push(`Note: ${a.note.trim()}`)

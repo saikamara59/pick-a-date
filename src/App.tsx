@@ -20,10 +20,10 @@ export default function App() {
 
   if (!code) return <Creator />
 
-  const theme = invite?.theme ?? 'cherry'
+  const theme = invite?.theme ?? 'riso'
   return (
     <div className={`invite-app t-${theme}`}>
-      {invite ? <Invite inv={invite} serial={serialFor(code)} /> : <BrokenLinkScreen />}
+      {invite ? <Invite inv={invite} code={code} serial={serialFor(code)} /> : <BrokenLinkScreen />}
     </div>
   )
 }

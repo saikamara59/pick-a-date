@@ -1550,3 +1550,130 @@ textarea.in {
     transition: none !important;
   }
 }
+
+/* when step */
+.days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+.day {
+  min-height: 58px;
+  border-radius: 14px;
+  border: 0;
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  padding: 0;
+}
+.day small {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.day b {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.day.sel,
+.time.sel {
+  background: var(--accent);
+  color: var(--on);
+  box-shadow: none;
+}
+.day.sel small {
+  color: var(--on);
+  opacity: 0.85;
+}
+.times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.time {
+  min-height: 48px;
+  padding: 0 20px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.when-preview {
+  margin: 22px 0 0;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--accent);
+}
+.t-stationery .when-preview {
+  font-weight: 400;
+  font-style: italic;
+  font-size: 26px;
+}
+.fine.err {
+  color: var(--accent-2);
+  font-weight: 600;
+}
+
+/* creator: email notifications */
+.span-all {
+  grid-column: 1 / -1;
+}
+.notify-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.notify-row .in {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.code-in {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  font-variant-numeric: tabular-nums;
+  max-width: 220px;
+}
+.notify-ok {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: inset 0 0 0 1.5px var(--line);
+  font-size: 15px;
+}
+.notify-ok > span:nth-child(2) {
+  flex: 1 1 240px;
+}
+.notify-ok .check {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  flex: none;
+}
+.help.err {
+  color: var(--accent-2);
+  font-weight: 600;
+}

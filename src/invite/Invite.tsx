@@ -4,7 +4,7 @@ import type { Answers, Category, Invite as InviteData, Pick, SpotPick } from '..
 import type { AreaId } from '../lib/areas'
 import { isSurprise } from '../lib/presets'
 import { declineMessage, replyHref } from '../lib/share'
-import { AreaStep, ChoiceStep, DeclinedScreen, IntroScreen, NoteStep } from './screens'
+import { AreaStep, ChoiceStep, DeclinedScreen, IntroScreen, NoteStep, WhenStep } from './screens'
 import { SpotStep } from './SpotStep'
 import { TicketScreen } from './TicketScreen'
 
@@ -32,7 +32,7 @@ const emptyAnswers = (inv: InviteData): Answers => ({
 
 type Screen = 'intro' | 'steps' | 'ticket' | 'declined'
 
-export function Invite({ inv, serial }: { inv: InviteData; serial: string }) {
+export function Invite({ inv, code, serial }: { inv: InviteData; code: string; serial: string }) {
   const [screen, setScreen] = useState<Screen>('intro')
   const [answers, setAnswers] = useState<Answers>(() => emptyAnswers(inv))
   const [idx, setIdx] = useState(0)
@@ -87,6 +87,7 @@ export function Invite({ inv, serial }: { inv: InviteData; serial: string }) {
     return (
       <TicketScreen
         inv={inv}
+        code={code}
         answers={answers}
         serial={serial}
         onChange={() => {
@@ -120,6 +121,17 @@ export function Invite({ inv, serial }: { inv: InviteData; serial: string }) {
         />
       )
     case 'choice':
+      if (step.cat.kind === 'when') {
+        return (
+          <WhenStep
+            key={key}
+            nav={nav}
+            cat={step.cat}
+            value={answers.picks[step.cat.id]?.value}
+            onPick={(value) => commit((a) => ({ ...a, picks: { ...a.picks, [step.cat.id]: { value, custom: false } } }))}
+          />
+        )
+      }
       return (
         <ChoiceStep
           key={key}

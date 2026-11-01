@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Category, Invite, Pick } from '../types'
 import { AREAS, AREA_BY_ID, type AreaId } from '../lib/areas'
 import { isSurprise } from '../lib/presets'
+import { dayParts, formatWhen, isWhenValue, parseTime, upcomingDays } from '../lib/when'
 import { ArrowRight, Grain, Question, Ring, StepTop } from '../components/ui'
 
 const SELECT_DELAY = 420
@@ -384,3 +385,77 @@ export function BrokenLinkScreen() {
 }
 
 export const areaLabel = (a?: AreaId) => (a ? AREA_BY_ID[a].label : '')
+
+/* ---------------- When: a real day and time ---------------- */
+
+export function WhenStep({
+  nav,
+  cat,
+  value,
+  onPick,
+}: {
+  nav: StepNav
+  cat: Category
+  value?: string
+  onPick: (value: string) => void
+}) {
+  const days = upcomingDays(14)
+  const times = cat.options.map((t) => ({ label: t, at: parseTime(t) })).filter((t) => t.at)
+  const [day, setDay] = useState<string | undefined>(value && isWhenValue(value) ? value.slice(0, 10) : undefined)
+  const [time, setTime] = useState<string | undefined>(value && isWhenValue(value) ? value.slice(11) : undefined)
+  const done = day && time
+
+  return (
+    <section className="screen">
+      <Grain />
+      <StepTop {...nav} />
+      <Question eyebrow={cat.label}>{cat.question}</Question>
+      <div className="pad">
+        <span className="fl" id={`days-${cat.id}`}>
+          Pick a day
+        </span>
+        <div className="days" role="radiogroup" aria-labelledby={`days-${cat.id}`}>
+          {days.map((d) => {
+            const p = dayParts(d)
+            const on = day === d
+            return (
+              <button
+                key={d}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                aria-label={`${p.weekday} ${p.month} ${p.date}`}
+                className={`day${on ? ' sel' : ''}`}
+                onClick={() => setDay(d)}
+              >
+                <small>{p.weekday}</small>
+                <b>{p.date}</b>
+              </button>
+            )
+          })}
+        </div>
+        <span className="fl" id={`times-${cat.id}`} style={{ marginTop: 22 }}>
+          And a time
+        </span>
+        <div className="times" role="radiogroup" aria-labelledby={`times-${cat.id}`}>
+          {times.map(({ label, at }) => {
+            const v = `${String(at!.h).padStart(2, '0')}:${String(at!.m).padStart(2, '0')}`
+            const on = time === v
+            return (
+              <button key={label} type="button" role="radio" aria-checked={on} className={`time${on ? ' sel' : ''}`} onClick={() => setTime(v)}>
+                {label}
+              </button>
+            )
+          })}
+        </div>
+        {done && <p className="when-preview">{formatWhen(`${day}T${time}`)}</p>}
+      </div>
+      <div className="actions">
+        <button type="button" className="btn btn-p wide" disabled={!done} onClick={() => done && onPick(`${day}T${time}`)}>
+          Next
+          <ArrowRight />
+        </button>
+      </div>
+    </section>
+  )
+}

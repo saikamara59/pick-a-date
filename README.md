@@ -1,13 +1,15 @@
 # Pick a Date
 
-A date-invite generator. You build an invite and text her the link. She picks the area, the food, the activity and real spots, then gets the plan back as a ticket and texts you her picks.
+A date-invite generator. You build an invite and text her the link. She picks the area, the food, the activity, real spots and a day and time, then sends it, and you get an email with her picks and a calendar invite.
 
-No database: the whole invite is compressed into the link. The only server code is one Netlify Function that proxies Google Places so the API key never reaches the browser.
+No database: the whole invite is compressed into the link. A few Netlify Functions keep the API keys server-side: Google Places search, email verification, and the notification email.
 
 ## How it works
 
 - **`/`** is the creator. The draft is saved in your browser, and **New invite** keeps your questions but clears her name.
 - **`/i/<code>`** is the invite. `<code>` is the invite JSON compressed with `lz-string`. Every field is re-validated on decode (`src/lib/codec.ts`), so a hand-edited link can't inject anything.
+- **`/api/verify/start`, `/api/verify/check`** confirm his email with a 6-digit code. The server then signs the address into the invite link, so a link can't be edited to email someone else.
+- **`/api/notify`** emails him her picks with a calendar invite (.ics) and an "Add to Google Calendar" link. It only sends to the signed address, at most 3 times per invite. Rate limits live in Netlify Blobs.
 - **`/api/places`** is `netlify/functions/places.ts`. It calls Places API (New) Text Search with Pro-tier fields only, restricted to the chosen area's bounding box, and caches identical searches at the CDN for an hour.
 
 Areas: Manhattan, Brooklyn, Staten Island, Jersey City & Hoboken (`src/lib/areas.ts`).
@@ -24,7 +26,14 @@ npx netlify dev        # app + /api/places on one port
 
 ## Deploy
 
-Netlify builds from `netlify.toml`. Set `GOOGLE_PLACES_API_KEY` under Project configuration → Environment variables.
+Netlify builds from `netlify.toml`. Set these under Project configuration → Environment variables:
+
+| Variable | What it is |
+| --- | --- |
+| `GOOGLE_PLACES_API_KEY` | Places API (New) key |
+| `RESEND_API_KEY` | From resend.com → API Keys |
+| `NOTIFY_FROM` | Sender, e.g. `Pick a Date <onboarding@resend.dev>` (test sender only reaches your own Resend account email; verify a domain to email anyone) |
+| `SIGNING_SECRET` | Any long random string, e.g. `openssl rand -base64 32`. Changing it breaks existing email-enabled links. |
 
 Google Cloud setup: enable **Places API (New)**, restrict the key to that API only, and set a daily quota cap plus a budget alert.
 

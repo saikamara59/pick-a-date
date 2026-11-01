@@ -8,10 +8,11 @@ import { copyText } from '../lib/share'
 import { buildSteps } from '../invite/Invite'
 import { IntroScreen } from '../invite/screens'
 import { CopyIcon, Cross, Eye, LinkIcon, Plus, TicketLogo, Toggle } from '../components/ui'
+import { NotifyField } from './NotifyField'
 
 const STORAGE_KEY = 'pick-a-date:draft'
 /** Bump when default options change, so saved drafts pick up new presets once. */
-const PRESETS_VERSION = 3
+const PRESETS_VERSION = 4
 const VERSION_KEY = 'pick-a-date:presets'
 const LEGACY_THEMES: Record<string, ThemeId> = { cherry: 'riso', plum: 'stationery', midnight: 'night' }
 
@@ -21,7 +22,13 @@ function loadDraft(): Draft {
     if (raw) {
       const saved = { ...defaultDraft(), ...(JSON.parse(raw) as Partial<Draft>) }
       saved.theme = LEGACY_THEMES[saved.theme] ?? saved.theme
-      if (Number(localStorage.getItem(VERSION_KEY) ?? 1) < PRESETS_VERSION) {
+      const savedVersion = Number(localStorage.getItem(VERSION_KEY) ?? 1)
+      if (savedVersion < 4) {
+        // "When" became a real day + time picker.
+        const when = defaultDraft().categories.find((c) => c.id === 'when')!
+        saved.categories = saved.categories.map((c) => (c.id === 'when' ? { ...when, on: c.on } : c))
+      }
+      if (savedVersion < PRESETS_VERSION) {
         // Add new default options to his saved questions, keeping his edits.
         // "Surprise me" stays last; the list is capped at 12.
         const defaults = defaultDraft().categories
@@ -82,8 +89,11 @@ export function Creator() {
   // What's still missing before the link is worth sending, first problem only.
   const problem = (() => {
     if (!draft.from.trim()) return 'Add your name to get a link.'
-    if (draft.reply.kind !== 'none' && cleanReply(draft.reply.kind, draft.reply.value).kind === 'none')
+    // With email set up, the text-me backup is optional, so only flag a half-typed number.
+    const backupEmpty = !draft.reply.value.trim()
+    if (draft.reply.kind !== 'none' && !(draft.notify?.sig && backupEmpty) && cleanReply(draft.reply.kind, draft.reply.value).kind === 'none')
       return draft.reply.kind === 'sms' ? 'Add your full number so she can text you.' : 'Add your Instagram handle.'
+    if (!draft.notify?.sig && draft.reply.kind === 'none') return 'Add your email (or a number) so you hear back.'
     if (!draft.to.trim()) return 'Add her name to get a link.'
     if (draft.areas.length === 0) return 'Turn on at least one area.'
     if (!draft.categories.some((c) => c.on && c.options.length >= 2)) return 'Turn on a question with 2+ options.'
@@ -148,9 +158,12 @@ export function Creator() {
                 </label>
                 <input id="you-name" className="in" maxLength={40} value={draft.from} onChange={(e) => set('from', e.target.value)} placeholder="Your first name" />
               </div>
+              <div className="span-all">
+                <NotifyField value={draft.notify} onChange={(v) => set('notify', v)} />
+              </div>
               <div>
                 <span className="fl" id="reply-l">
-                  How she replies
+                  {draft.notify?.sig ? 'Backup: she can also text you' : 'Or she texts you her picks'}
                 </span>
                 <div className="seg" role="radiogroup" aria-labelledby="reply-l">
                   {REPLY.map((r) => (
@@ -252,7 +265,7 @@ export function Creator() {
                     <input id={`q-${c.id}`} className="in" maxLength={90} value={c.question} onChange={(e) => setCat(c.id, { question: e.target.value })} disabled={!c.on} />
                   </div>
                   <div>
-                    <span className="fl">Options</span>
+                    <span className="fl">{c.kind === 'when' ? 'Times she can pick' : 'Options'}</span>
                     <div className="chips">
                       {c.options.map((o) => (
                         <span className="chip" key={o}>
@@ -294,6 +307,7 @@ export function Creator() {
                       )}
                     </div>
                   </div>
+                  {c.kind === 'when' && <span className="help">She picks a day in the next two weeks, then one of these times. Use times like “7 PM”.</span>}
                   {SPOT_CATEGORY_IDS.has(c.id) && (
                     <div className="qc-foot">
                       <div>
