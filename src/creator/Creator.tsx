@@ -408,7 +408,7 @@ export function Creator() {
 
       <div className="c-bar">
         <div className="c-bar-inner">
-          <div className="linkbox">
+          <div className={`linkbox${!shortUrl && !problem ? ' idle' : ''}`}>
             <LinkIcon />
             <span className="mono">
               {problem ? (
