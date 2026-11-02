@@ -12,7 +12,7 @@ import { NotifyField } from './NotifyField'
 
 const STORAGE_KEY = 'pick-a-date:draft'
 /** Bump when default options change, so saved drafts pick up new presets once. */
-const PRESETS_VERSION = 4
+const PRESETS_VERSION = 5
 const VERSION_KEY = 'pick-a-date:presets'
 const LEGACY_THEMES: Record<string, ThemeId> = { cherry: 'riso', plum: 'stationery', midnight: 'night' }
 
@@ -27,6 +27,10 @@ function loadDraft(): Draft {
         // "When" became a real day + time picker.
         const when = defaultDraft().categories.find((c) => c.id === 'when')!
         saved.categories = saved.categories.map((c) => (c.id === 'when' ? { ...when, on: c.on } : c))
+      }
+      if (savedVersion < 5) {
+        // Queens and The Bronx were added; turn them on alongside his other areas.
+        saved.areas = AREAS.map((a) => a.id).filter((id) => saved.areas.includes(id) || id === 'queens' || id === 'bronx')
       }
       if (savedVersion < PRESETS_VERSION) {
         // Add new default options to his saved questions, keeping his edits.

@@ -693,6 +693,16 @@ textarea.in {
 .b-brooklyn {
   background: var(--accent);
 }
+.b-queens {
+  background: transparent;
+  color: var(--accent-2);
+  box-shadow: inset 0 0 0 2.5px var(--accent-2);
+}
+.b-bronx {
+  background: transparent;
+  color: var(--accent);
+  box-shadow: inset 0 0 0 2.5px var(--accent);
+}
 .b-staten-island {
   background: var(--ink);
   color: var(--bg);

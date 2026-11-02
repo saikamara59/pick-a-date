@@ -1,7 +1,7 @@
 // Areas a date can happen in. Shared by the app and the Netlify function.
 // Boxes are approximate bounding rectangles used to restrict Google Places results.
 
-export type AreaId = 'manhattan' | 'brooklyn' | 'staten-island' | 'jersey-city-hoboken'
+export type AreaId = 'manhattan' | 'brooklyn' | 'queens' | 'bronx' | 'staten-island' | 'jersey-city-hoboken'
 
 export interface Area {
   id: AreaId
@@ -31,6 +31,22 @@ export const AREAS: Area[] = [
     hint: 'Williamsburg · Bushwick · Park Slope',
     queryName: 'Brooklyn, NY',
     box: { low: { latitude: 40.57, longitude: -74.042 }, high: { latitude: 40.739, longitude: -73.833 } },
+  },
+  {
+    id: 'queens',
+    short: 'Q',
+    label: 'Queens',
+    hint: 'Astoria · LIC · Flushing',
+    queryName: 'Queens, NY',
+    box: { low: { latitude: 40.541, longitude: -73.962 }, high: { latitude: 40.801, longitude: -73.7 } },
+  },
+  {
+    id: 'bronx',
+    short: 'BX',
+    label: 'The Bronx',
+    hint: 'Arthur Ave · City Island · Mott Haven',
+    queryName: 'Bronx, NY',
+    box: { low: { latitude: 40.785, longitude: -73.933 }, high: { latitude: 40.917, longitude: -73.765 } },
   },
   {
     id: 'staten-island',
