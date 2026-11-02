@@ -5,9 +5,11 @@ import { decodeInvite } from '../../src/lib/codec'
 import { hoodOf, isAreaId, placeLabel } from '../../src/lib/areas'
 import { buildIcs, formatWhen, googleCalendarUrl, isWhenValue, whenToDate, type CalendarEvent } from '../../src/lib/when'
 import type { Answers, Invite, Pick, SpotPick } from '../../src/types'
+import { buildGamePlan, type GamePlan } from '../lib/gameplan'
 import { handle, allow, esc, fromAddress, json, notifyPayload, readJson, sendEmail, verify } from '../lib/server'
 
 const s = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
+const coord = (v: unknown, max: number) => (typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= max ? v : 0)
 const MAPS_RE = /^https:\/\/(maps\.google\.com|www\.google\.com\/maps|goo\.gl\/maps|maps\.app\.goo\.gl)\//
 
 /** Her answers come from the browser, so rebuild them from scratch against the invite. */
@@ -32,7 +34,7 @@ function cleanAnswers(inv: Invite, raw: unknown): Answers {
       if (name) {
         spots[c.id] = {
           kind: 'place',
-          place: { id: s(pl.id, 120), name, address: s(pl.address, 140), lat: 0, lng: 0, mapsUrl: MAPS_RE.test(mapsUrl) ? mapsUrl : '' },
+          place: { id: s(pl.id, 120), name, address: s(pl.address, 140), lat: coord(pl.lat, 90), lng: coord(pl.lng, 180), mapsUrl: MAPS_RE.test(mapsUrl) ? mapsUrl : '' },
         }
       }
     }
@@ -64,6 +66,33 @@ function rowsFor(inv: Invite, a: Answers): Row[] {
   return rows
 }
 
+function planHtml(p: GamePlan): string {
+  const tip = (label: string, body: string) =>
+    body ? `<p style="margin:10px 0 0"><b style="font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#5d5a78">${esc(label)}</b><br>${esc(body)}</p>` : ''
+  return `<div style="margin-top:32px;padding:20px;border:2px solid #22204a;border-radius:16px;box-shadow:5px 5px 0 #ff4f9e">
+<p style="font-size:13px;color:#ff4f9e;font-weight:700;margin:0">Your game plan</p>
+<table style="border-collapse:collapse;width:100%;font-size:15px;margin-top:10px">
+${p.timeline.map((t) => `<tr><td style="padding:6px 12px 6px 0;font-weight:700;white-space:nowrap;vertical-align:top">${esc(t.time)}</td><td style="padding:6px 0">${esc(t.what)}</td></tr>`).join('\n')}
+</table>
+${tip('Getting around', p.getting_around)}${tip('Book or check ahead', p.book_ahead)}${tip('If plans change', p.backup)}
+${p.openers.length ? `<p style="margin:14px 0 0"><b style="font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#5d5a78">Easy conversation starters</b></p><ul style="margin:6px 0 0;padding-left:18px">${p.openers.map((o) => `<li style="margin:4px 0">${esc(o)}</li>`).join('')}</ul>` : ''}
+<p style="margin:14px 0 0;font-size:12px;color:#5d5a78">Written by AI from her picks. Double-check hours and reservations.</p>
+</div>`
+}
+
+function planText(p: GamePlan): string {
+  return [
+    'YOUR GAME PLAN',
+    ...p.timeline.map((t) => `${t.time}  ${t.what}`),
+    ...(p.getting_around ? ['', `Getting around: ${p.getting_around}`] : []),
+    ...(p.book_ahead ? [`Book or check ahead: ${p.book_ahead}`] : []),
+    ...(p.backup ? [`If plans change: ${p.backup}`] : []),
+    ...(p.openers.length ? ['', 'Conversation starters:', ...p.openers.map((o) => `- ${o}`)] : []),
+    '',
+    '(Written by AI from her picks. Double-check hours and reservations.)',
+  ].join('\n')
+}
+
 export default handle(async (req: Request) => {
   const body = await readJson(req)
   if (!body) return json({ error: 'Bad request' }, 400)
@@ -79,6 +108,8 @@ export default handle(async (req: Request) => {
 
   const a = cleanAnswers(inv, body.answers)
   const rows = rowsFor(inv, a)
+  // AI game plan is a bonus: skipped if no key, and the email still goes out if it fails or is slow.
+  const plan = process.env.ANTHROPIC_API_KEY ? await buildGamePlan(inv, a, 15_000) : null
 
   // Calendar event from the "when" pick, if there is one.
   const whenCat = inv.categories.find((c) => c.kind === 'when')
@@ -113,9 +144,10 @@ ${rows
 </table>
 ${gcal ? `<p style="margin:24px 0 0"><a href="${esc(gcal)}" style="display:inline-block;background:#2f67d8;color:#fff;text-decoration:none;font-weight:700;padding:14px 22px;border-radius:999px">Add to Google Calendar</a></p>
 <p style="color:#5d5a78;font-size:13px">Also attached as a calendar invite for Apple Calendar and Outlook.</p>` : ''}
+${plan ? planHtml(plan) : ''}
 </div>`
 
-  const text = [`${inv.to} picked the plan.`, '', ...rows.map((r) => `${r.label}: ${r.value}${r.sub ? ` (${r.sub})` : ''}${r.link ? ` ${r.link}` : ''}`), ...(gcal ? ['', `Add to Google Calendar: ${gcal}`] : [])].join('\n')
+  const text = [`${inv.to} picked the plan.`, '', ...rows.map((r) => `${r.label}: ${r.value}${r.sub ? ` (${r.sub})` : ''}${r.link ? ` ${r.link}` : ''}`), ...(gcal ? ['', `Add to Google Calendar: ${gcal}`] : []), ...(plan ? ['', planText(plan)] : [])].join('\n')
 
   try {
     await sendEmail({
