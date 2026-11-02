@@ -154,3 +154,28 @@ export function buildIcs(
   ]
   return lines.map(fold).join('\r\n') + '\r\n'
 }
+
+/** How far ahead she can pick a date. */
+export const WHEN_DAYS = 30
+
+/** 0 = Sunday … 6 = Saturday */
+export const weekdayIndex = (day: string) => wall(`${day}T00:00`).getUTCDay()
+
+/** "November 2026" */
+export const monthLabel = (day: string) =>
+  wall(`${day}T00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+
+/** Days grouped by month, each padded so day 1 lines up under its weekday. */
+export function calendarMonths(days: string[]): { label: string; cells: (string | null)[] }[] {
+  const months: { label: string; cells: (string | null)[] }[] = []
+  for (const d of days) {
+    const label = monthLabel(d)
+    let m = months[months.length - 1]
+    if (!m || m.label !== label) {
+      m = { label, cells: Array(weekdayIndex(d)).fill(null) }
+      months.push(m)
+    }
+    m.cells.push(d)
+  }
+  return months
+}

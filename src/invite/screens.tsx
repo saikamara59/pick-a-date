@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Category, Invite, Pick } from '../types'
 import { AREAS, AREA_BY_ID, type AreaId } from '../lib/areas'
 import { isSurprise } from '../lib/presets'
-import { dayParts, formatWhen, isWhenValue, parseTime, upcomingDays } from '../lib/when'
+import { calendarMonths, dayParts, formatWhen, isWhenValue, parseTime, upcomingDays, WHEN_DAYS } from '../lib/when'
 import { ArrowRight, Grain, Question, Ring, StepTop } from '../components/ui'
 import { OptionIcon } from '../components/optionIcons'
 
@@ -401,7 +401,7 @@ export function WhenStep({
   value?: string
   onPick: (value: string) => void
 }) {
-  const days = upcomingDays(14)
+  const days = upcomingDays(WHEN_DAYS)
   const times = cat.options.map((t) => ({ label: t, at: parseTime(t) })).filter((t) => t.at)
   const [day, setDay] = useState<string | undefined>(value && isWhenValue(value) ? value.slice(0, 10) : undefined)
   const [time, setTime] = useState<string | undefined>(value && isWhenValue(value) ? value.slice(11) : undefined)
@@ -416,25 +416,37 @@ export function WhenStep({
         <span className="fl" id={`days-${cat.id}`}>
           Pick a day
         </span>
-        <div className="days" role="radiogroup" aria-labelledby={`days-${cat.id}`}>
-          {days.map((d) => {
-            const p = dayParts(d)
-            const on = day === d
-            return (
-              <button
-                key={d}
-                type="button"
-                role="radio"
-                aria-checked={on}
-                aria-label={`${p.weekday} ${p.month} ${p.date}`}
-                className={`day${on ? ' sel' : ''}`}
-                onClick={() => setDay(d)}
-              >
-                <small>{p.weekday}</small>
-                <b>{p.date}</b>
-              </button>
-            )
-          })}
+        <div className="cal" role="radiogroup" aria-labelledby={`days-${cat.id}`}>
+          <div className="cal-head" aria-hidden="true">
+            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((w, i) => (
+              <span key={i}>{w}</span>
+            ))}
+          </div>
+          {calendarMonths(days).map((m) => (
+            <div key={m.label} className="cal-month">
+              <p className="cal-label">{m.label}</p>
+              <div className="cal-grid">
+                {m.cells.map((d, i) => {
+                  if (!d) return <span key={`b${i}`} />
+                  const p = dayParts(d)
+                  const on = day === d
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      aria-label={`${p.weekday} ${p.month} ${p.date}`}
+                      className={`day${on ? ' sel' : ''}`}
+                      onClick={() => setDay(d)}
+                    >
+                      {p.date}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
         </div>
         <span className="fl" id={`times-${cat.id}`} style={{ marginTop: 22 }}>
           And a time
