@@ -331,7 +331,7 @@ export function Creator() {
                       )}
                     </div>
                   </div>
-                  {c.kind === 'when' && <span className="help">She picks a day in the next two weeks, then one of these times. Use times like “7 PM”.</span>}
+                  {c.kind === 'when' && <span className="help">She picks a day in the next 30 days, then one of these times. Use times like “7 PM”.</span>}
                   {SPOT_CATEGORY_IDS.has(c.id) && (
                     <div className="qc-foot">
                       <div>
