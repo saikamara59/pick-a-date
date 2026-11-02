@@ -1677,3 +1677,11 @@ textarea.in {
   color: var(--accent-2);
   font-weight: 600;
 }
+.link-text {
+  user-select: all;
+  -webkit-user-select: all;
+}
+.link-note {
+  flex-basis: 100%;
+  margin: 0;
+}

@@ -7,7 +7,8 @@ No database: the whole invite is compressed into the link. A few Netlify Functio
 ## How it works
 
 - **`/`** is the creator. The draft is saved in your browser, and **New invite** keeps your questions but clears her name.
-- **`/i/<code>`** is the invite. `<code>` is the invite JSON compressed with `lz-string`. Every field is re-validated on decode (`src/lib/codec.ts`), so a hand-edited link can't inject anything.
+- **`/i/<id>`** is a short invite link. **Copy link** stores the invite in Netlify Blobs under a 9-character id made from a hash of the invite (`netlify/functions/invites.ts`), so the same invite always gets the same link.
+- **`/i/<code>`** (older long links) is the invite. `<code>` is the invite JSON compressed with `lz-string`. Every field is re-validated on decode (`src/lib/codec.ts`), so a hand-edited link can't inject anything.
 - **`/api/verify/start`, `/api/verify/check`** confirm his email with a 6-digit code. The server then signs the address into the invite link, so a link can't be edited to email someone else.
 - **`/api/notify`** emails him her picks with a calendar invite (.ics) and an "Add to Google Calendar" link. It only sends to the signed address, at most 3 times per invite. Rate limits live in Netlify Blobs.
 - **`/api/places`** is `netlify/functions/places.ts`. It calls Places API (New) Text Search with Pro-tier fields only, restricted to the chosen area's bounding box, and caches identical searches at the CDN for an hour.

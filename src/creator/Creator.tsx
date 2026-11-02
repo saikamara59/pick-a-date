@@ -4,7 +4,7 @@ import type { Draft, ReplyKind, ThemeId } from '../types'
 import { AREAS, type AreaId } from '../lib/areas'
 import { defaultDraft, isSurprise, SPOT_CATEGORY_IDS } from '../lib/presets'
 import { cleanReply, draftToInvite, encodeInvite, inviteUrl, serialFor } from '../lib/codec'
-import { copyText } from '../lib/share'
+import { createShortLink, copyAsync } from '../lib/shortlink'
 import { buildSteps } from '../invite/Invite'
 import { IntroScreen } from '../invite/screens'
 import { CopyIcon, Cross, Eye, LinkIcon, Plus, TicketLogo, Toggle } from '../components/ui'
@@ -65,6 +65,8 @@ const REPLY: { id: ReplyKind; label: string }[] = [
 export function Creator() {
   const [draft, setDraft] = useState<Draft>(loadDraft)
   const [copied, setCopied] = useState(false)
+  const [short, setShort] = useState<{ code: string; url: string } | null>(null)
+  const [linkNote, setLinkNote] = useState('')
   const [adding, setAdding] = useState<string | null>(null)
   const [newOption, setNewOption] = useState('')
 
@@ -100,11 +102,29 @@ export function Creator() {
     return null
   })()
 
+  const shortUrl = short?.code === code ? short.url : null
+
   const copy = async () => {
     if (problem) return
-    if (await copyText(url)) {
+    setLinkNote('')
+    // Make (or reuse) the short link. If the server can't, fall back to the long link so he can still send it.
+    const link = shortUrl
+      ? Promise.resolve(shortUrl)
+      : createShortLink(code)
+          .then((u) => {
+            setShort({ code, url: u })
+            return u
+          })
+          .catch(() => {
+            setLinkNote('Couldn’t make a short link, so the full link was copied instead.')
+            return url
+          })
+    if (await copyAsync(link)) {
       setCopied(true)
       window.setTimeout(() => setCopied(false), 2400)
+    } else {
+      await link
+      setLinkNote('Your browser blocked copying. Press and hold the link above to copy it.')
     }
   }
 
@@ -389,10 +409,13 @@ export function Creator() {
             <span className="mono">
               {problem ? (
                 <span className="muted">{problem}</span>
+              ) : shortUrl ? (
+                <span className="link-text">
+                  {shortUrl.replace(/^https?:\/\//, '').replace(/\/i\/.*/, '/i/')}
+                  <b>{shortUrl.split('/i/')[1]}</b>
+                </span>
               ) : (
-                <>
-                  {window.location.host}/i/<b>{code.slice(0, 8)}…</b>
-                </>
+                <span className="muted">Your short link appears when you copy it.</span>
               )}
             </span>
           </div>
@@ -410,6 +433,11 @@ export function Creator() {
             <CopyIcon />
             {copied ? 'Copied. Send it.' : 'Copy link'}
           </button>
+          {linkNote && (
+            <p className="help err link-note" role="status">
+              {linkNote}
+            </p>
+          )}
         </div>
       </div>
     </div>
