@@ -3,13 +3,14 @@
 import { useEffect, useState } from 'react'
 import type { Category, Pick, SpotPick } from '../types'
 import { placeLabel, type AreaId } from '../lib/areas'
-import { PLACES_ATTRIBUTION, searchPlaces, type Place } from '../lib/places'
+import { findPlaces, PLACES_ATTRIBUTION, type Place } from '../lib/places'
 import { ArrowRight, Grain, Question, StepTop } from '../components/ui'
 
-type State = { status: 'loading' } | { status: 'ready'; places: Place[] } | { status: 'error' }
+type State = { status: 'loading' } | { status: 'ready'; places: Place[]; searched: string[] } | { status: 'error' }
 
 export function SpotStep({
   nav,
+  cat,
   pick,
   area,
   hood,
@@ -38,13 +39,13 @@ export function SpotStep({
   useEffect(() => {
     const ctrl = new AbortController()
     setState({ status: 'loading' })
-    searchPlaces(area, pick.value, ctrl.signal, hood)
-      .then((places) => setState({ status: 'ready', places }))
+    findPlaces(area, hood, pick, cat.label, ctrl.signal)
+      .then(({ places, searched }) => setState({ status: 'ready', places, searched }))
       .catch((err: unknown) => {
         if ((err as Error).name !== 'AbortError') setState({ status: 'error' })
       })
     return () => ctrl.abort()
-  }, [area, hood, pick.value, attempt])
+  }, [area, hood, pick, cat.label, attempt])
 
   if (state.status === 'error') {
     return (
@@ -115,7 +116,17 @@ export function SpotStep({
     <section className="screen has-dock">
       <Grain />
       <StepTop {...nav} />
-      <Question eyebrow={loading ? `Finding ${what} in ${areaName}…` : `${pick.value} in ${areaName}`}>Pick the spot.</Question>
+      <Question
+        eyebrow={
+          loading
+            ? `Finding ${what} in ${areaName}…`
+            : state.status === 'ready' && state.searched.length
+              ? `Searched ${state.searched.map((q) => `“${q}”`).join(' and ')} in ${areaName}`
+              : `${pick.value} in ${areaName}`
+        }
+      >
+        Pick the spot.
+      </Question>
 
       {loading ? (
         <div className="menu" aria-busy="true" aria-label={`Loading ${what} spots`}>
@@ -156,7 +167,7 @@ export function SpotStep({
                 <span className="hl-text">Or… {from} picks</span>
               </b>
               <span>
-                He finds a {what} spot in {areaName}.
+                {pick.custom ? `He finds the right spot in ${areaName}.` : `He finds a ${what} spot in ${areaName}.`}
               </span>
             </button>
           </div>

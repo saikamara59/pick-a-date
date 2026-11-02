@@ -11,6 +11,8 @@ No database: the whole invite is compressed into the link. A few Netlify Functio
 - **`/i/<code>`** (older long links) is the invite. `<code>` is the invite JSON compressed with `lz-string`. Every field is re-validated on decode (`src/lib/codec.ts`), so a hand-edited link can't inject anything.
 - **`/api/verify/start`, `/api/verify/check`** confirm his email with a 6-digit code. The server then signs the address into the invite link, so a link can't be edited to email someone else.
 - **`/api/notify`** emails him her picks with a calendar invite (.ics) and an "Add to Google Calendar" link. It only sends to the signed address, at most 3 times per invite. Rate limits live in Netlify Blobs.
+- **`/api/ai/search`** turns a typed-in answer ("something artsy, not a museum") into one or two map searches with Claude, so the spot step still finds real places. Falls back to her own words.
+- **AI game plan:** `/api/notify` asks Claude for a timeline, getting-around tip, what to book, a backup and three conversation starters, using walking times computed from the real places. If AI is off or slow, the email goes out without it.
 - **`/api/places`** is `netlify/functions/places.ts`. It calls Places API (New) Text Search with Pro-tier fields only, restricted to the chosen area's bounding box, and caches identical searches at the CDN for an hour.
 
 Areas: Manhattan, Brooklyn, Staten Island, Jersey City & Hoboken (`src/lib/areas.ts`).
@@ -34,6 +36,8 @@ Netlify builds from `netlify.toml`. Set these under Project configuration → En
 | `GOOGLE_PLACES_API_KEY` | Places API (New) key |
 | `RESEND_API_KEY` | From resend.com → API Keys |
 | `NOTIFY_FROM` | Sender, e.g. `Pick a Date <onboarding@resend.dev>` (test sender only reaches your own Resend account email; verify a domain to email anyone) |
+| `ANTHROPIC_API_KEY` | From console.anthropic.com → API Keys. Turns on the AI features; without it they're skipped |
+| `ANTHROPIC_MODEL` | Optional. Defaults to `claude-haiku-5-5`; set e.g. `claude-sonnet-5-5` to switch |
 | `SIGNING_SECRET` | Any long random string, e.g. `openssl rand -base64 32`. Changing it breaks existing email-enabled links. |
 
 Google Cloud setup: enable **Places API (New)**, restrict the key to that API only, and set a daily quota cap plus a budget alert.

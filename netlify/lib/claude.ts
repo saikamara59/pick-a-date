@@ -1,20 +1,22 @@
 // Minimal Claude Messages API client for the functions.
-// The model returns JSON by calling a single strict tool whose input_schema is the shape we want.
+// Asks for a single JSON object in plain text and parses it, which works the same on any Claude model.
 import { env } from './server'
 
-const DEFAULT_MODEL = 'claude-sonnet-5'
+/** Cheap and fast; set ANTHROPIC_MODEL in Netlify to use another model (e.g. claude-sonnet-5-5). */
+const DEFAULT_MODEL = 'claude-haiku-5-5'
 
 export interface AskOptions {
   system: string
   user: string
-  /** JSON schema for the answer */
-  schema: Record<string, unknown>
+  /** Shape of the JSON answer, shown to the model as an example */
+  shape: string
   effort?: 'low' | 'medium' | 'high'
   maxTokens?: number
   timeoutMs?: number
 }
 
 export async function askJson<T>(opts: AskOptions): Promise<T> {
+  const model = process.env.ANTHROPIC_MODEL || DEFAULT_MODEL
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     signal: AbortSignal.timeout(opts.timeoutMs ?? 15_000),
@@ -24,12 +26,12 @@ export async function askJson<T>(opts: AskOptions): Promise<T> {
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      model: process.env.ANTHROPIC_MODEL || DEFAULT_MODEL,
-      max_tokens: opts.maxTokens ?? 2000,
+      model,
+      max_tokens: opts.maxTokens ?? 1500,
       output_config: { effort: opts.effort ?? 'low' },
-      system: opts.system,
-      // Left on "auto" (newer models reject forced tool use); the prompt asks for exactly one call.
-      tools: [{ name: 'answer', description: 'Return your answer.', strict: true, input_schema: opts.schema }],
+      // Haiku can skip thinking entirely for short structured jobs, which keeps it fast.
+      ...(model.includes('haiku') ? { thinking: { type: 'disabled' } } : {}),
+      system: `${opts.system}\n\nReply with only one JSON object, no other text, in exactly this shape:\n${opts.shape}`,
       messages: [{ role: 'user', content: opts.user }],
     }),
   })
@@ -38,12 +40,12 @@ export async function askJson<T>(opts: AskOptions): Promise<T> {
     console.error('Claude API error', res.status, body.slice(0, 500))
     throw new Error(`Claude API error ${res.status}`)
   }
-  const data = (await res.json()) as { content?: { type: string; name?: string; input?: unknown; text?: string }[] }
-  const tool = data.content?.find((b) => b.type === 'tool_use' && b.name === 'answer')
-  if (tool?.input && typeof tool.input === 'object') return tool.input as T
-  // Fallback: a JSON object written as text.
-  const text = data.content?.find((b) => b.type === 'text')?.text ?? ''
+  const data = (await res.json()) as { content?: { type: string; text?: string }[] }
+  const text = (data.content ?? [])
+    .filter((b) => b.type === 'text')
+    .map((b) => b.text ?? '')
+    .join('')
   const m = /\{[\s\S]*\}/.exec(text)
-  if (m) return JSON.parse(m[0]) as T
-  throw new Error('Claude returned no answer')
+  if (!m) throw new Error('Claude returned no JSON')
+  return JSON.parse(m[0]) as T
 }
