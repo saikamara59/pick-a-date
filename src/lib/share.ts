@@ -1,10 +1,10 @@
 import type { Answers, Invite } from '../types'
-import { AREA_BY_ID } from './areas'
+import { placeLabel } from './areas'
 import { formatWhen } from './when'
 
 export function planLines(inv: Invite, a: Answers): string[] {
   const lines: string[] = []
-  if (a.area) lines.push(`Where: ${AREA_BY_ID[a.area].label}`)
+  if (a.area) lines.push(`Where: ${placeLabel(a.area, a.hood)}`)
   for (const c of inv.categories) {
     const pick = a.picks[c.id]
     if (!pick) continue

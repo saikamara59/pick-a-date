@@ -5,6 +5,7 @@ import { AREAS, AREA_BY_ID, type AreaId } from '../lib/areas'
 import { isSurprise } from '../lib/presets'
 import { dayParts, formatWhen, isWhenValue, parseTime, upcomingDays } from '../lib/when'
 import { ArrowRight, Grain, Question, Ring, StepTop } from '../components/ui'
+import { OptionIcon } from '../components/optionIcons'
 
 const SELECT_DELAY = 420
 
@@ -259,6 +260,7 @@ export function ChoiceStep({
                 delayed.later({ value: opt, custom: false })
               }}
             >
+              <OptionIcon option={opt} category={cat.id} />
               <b>
                 {opt}
                 {on && <Ring />}
@@ -455,6 +457,56 @@ export function WhenStep({
           Next
           <ArrowRight />
         </button>
+      </div>
+    </section>
+  )
+}
+
+/* ---------------- Neighborhood within the area ---------------- */
+
+export function HoodStep({
+  nav,
+  area,
+  value,
+  onPick,
+}: {
+  nav: StepNav
+  area: AreaId
+  value?: string
+  onPick: (hood: string | undefined) => void
+}) {
+  const a = AREA_BY_ID[area]
+  const ANY = '*'
+  const [sel, setSel] = useState<string | undefined>(value ?? undefined)
+  const delayed = useDelayedPick<string>((v) => onPick(v === ANY ? undefined : v))
+  const rows = [{ id: ANY, label: `Anywhere in ${a.label}` }, ...a.hoods]
+
+  return (
+    <section className="screen">
+      <Grain />
+      <StepTop {...nav} />
+      <Question eyebrow={a.label}>Which part?</Question>
+      <div className="menu">
+        {rows.map((h) => {
+          const on = sel === h.id
+          return (
+            <button
+              key={h.id}
+              type="button"
+              className={`item${on ? ' sel' : ''}${sel && !on ? ' dim' : ''}${h.id === ANY ? ' any' : ''}`}
+              aria-pressed={on}
+              onClick={() => {
+                setSel(h.id)
+                delayed.later(h.id)
+              }}
+            >
+              <b>
+                {h.label}
+                {on && <Ring />}
+              </b>
+            </button>
+          )
+        })}
       </div>
     </section>
   )

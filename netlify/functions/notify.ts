@@ -2,7 +2,7 @@
 // Only sends to the address signed into the invite, and only a few times per invite.
 import { createHash } from 'node:crypto'
 import { decodeInvite } from '../../src/lib/codec'
-import { AREA_BY_ID, isAreaId } from '../../src/lib/areas'
+import { hoodOf, isAreaId, placeLabel } from '../../src/lib/areas'
 import { buildIcs, formatWhen, googleCalendarUrl, isWhenValue, whenToDate, type CalendarEvent } from '../../src/lib/when'
 import type { Answers, Invite, Pick, SpotPick } from '../../src/types'
 import { handle, allow, esc, fromAddress, json, notifyPayload, readJson, sendEmail, verify } from '../lib/server'
@@ -37,7 +37,9 @@ function cleanAnswers(inv: Invite, raw: unknown): Answers {
       }
     }
   }
-  return { area: isAreaId(o.area) ? o.area : undefined, picks, spots, note: s(o.note, 140) }
+  const area = isAreaId(o.area) ? o.area : undefined
+  const hood = area && typeof o.hood === 'string' && hoodOf(area, o.hood) ? o.hood : undefined
+  return { area, hood, picks, spots, note: s(o.note, 140) }
 }
 
 interface Row {
@@ -49,7 +51,7 @@ interface Row {
 
 function rowsFor(inv: Invite, a: Answers): Row[] {
   const rows: Row[] = []
-  if (a.area) rows.push({ label: 'Where', value: AREA_BY_ID[a.area].label })
+  if (a.area) rows.push({ label: 'Where', value: placeLabel(a.area, a.hood) })
   for (const c of inv.categories) {
     const pick = a.picks[c.id]
     if (!pick) continue
@@ -90,7 +92,7 @@ export default handle(async (req: Request) => {
           title: `Date with ${inv.to}`,
           start: whenToDate(whenValue),
           hours: 3,
-          location: firstPlace ? `${firstPlace.place.name}, ${firstPlace.place.address}` : a.area ? AREA_BY_ID[a.area].label : '',
+          location: firstPlace ? `${firstPlace.place.name}, ${firstPlace.place.address}` : a.area ? placeLabel(a.area, a.hood) : '',
           details,
         }
       : null

@@ -1695,3 +1695,35 @@ textarea.in {
   flex-basis: 100%;
   margin: 0;
 }
+.item.any b {
+  color: var(--accent);
+}
+
+/* option icons */
+.item {
+  align-items: center;
+}
+.opt-icon {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  background: var(--field);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.item.sel .opt-icon {
+  background: var(--accent);
+  color: var(--on);
+}
+.t-stationery .opt-icon {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.t-stationery .item.sel .opt-icon {
+  background: var(--accent);
+  box-shadow: none;
+}

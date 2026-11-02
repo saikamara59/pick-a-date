@@ -4,16 +4,17 @@ import type { Answers, Category, Invite as InviteData, Pick, SpotPick } from '..
 import type { AreaId } from '../lib/areas'
 import { isSurprise } from '../lib/presets'
 import { declineMessage, replyHref } from '../lib/share'
-import { AreaStep, ChoiceStep, DeclinedScreen, IntroScreen, NoteStep, WhenStep } from './screens'
+import { AreaStep, ChoiceStep, DeclinedScreen, HoodStep, IntroScreen, NoteStep, WhenStep } from './screens'
 import { SpotStep } from './SpotStep'
 import { TicketScreen } from './TicketScreen'
 
-type Step = { kind: 'area' } | { kind: 'choice'; cat: Category } | { kind: 'spot'; cat: Category } | { kind: 'note' }
+type Step = { kind: 'area' } | { kind: 'hood' } | { kind: 'choice'; cat: Category } | { kind: 'spot'; cat: Category } | { kind: 'note' }
 
 /** The step list depends on her answers: "Surprise me" skips that category's spot step. */
 export function buildSteps(inv: InviteData, a: Answers): Step[] {
   const steps: Step[] = []
   if (inv.areas.length > 1) steps.push({ kind: 'area' })
+  steps.push({ kind: 'hood' })
   for (const cat of inv.categories) {
     steps.push({ kind: 'choice', cat })
     const pick = a.picks[cat.id]
@@ -116,6 +117,25 @@ export function Invite({ inv, code, serial }: { inv: InviteData; code: string; s
               area,
               // A new area means earlier spot picks no longer fit.
               spots: area === a.area ? a.spots : {},
+              hood: area === a.area ? a.hood : undefined,
+            }))
+          }
+        />
+      )
+    case 'hood':
+      if (!answers.area) return null
+      return (
+        <HoodStep
+          key={key}
+          nav={nav}
+          area={answers.area}
+          value={answers.hood}
+          onPick={(hood) =>
+            commit((a) => ({
+              ...a,
+              hood,
+              // Spots were found for the old neighborhood.
+              spots: hood === a.hood ? a.spots : Object.fromEntries(Object.entries(a.spots).filter(([, v]) => v.kind !== 'place')),
             }))
           }
         />
@@ -163,6 +183,7 @@ export function Invite({ inv, code, serial }: { inv: InviteData; code: string; s
           cat={step.cat}
           pick={pick}
           area={answers.area}
+          hood={answers.hood}
           from={inv.from}
           value={answers.spots[step.cat.id]}
           onDone={(s: SpotPick) => commit((a) => ({ ...a, spots: { ...a.spots, [step.cat.id]: s } }))}

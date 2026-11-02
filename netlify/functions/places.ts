@@ -5,7 +5,7 @@
 // so each call bills as Text Search Pro. Adding rating/priceLevel/hours would bump
 // every call to the Enterprise SKU.
 
-import { AREA_BY_ID, isAreaId } from '../../src/lib/areas'
+import { AREA_BY_ID, hoodBox, hoodOf, isAreaId } from '../../src/lib/areas'
 
 const ENDPOINT = 'https://places.googleapis.com/v1/places:searchText'
 const FIELD_MASK = [
@@ -53,6 +53,9 @@ export default async (req: Request): Promise<Response> => {
   if (!key) return json({ error: 'Places search is not configured' }, 500)
 
   const a = AREA_BY_ID[area]
+  const hoodParam = url.searchParams.get('hood') ?? ''
+  const hood = hoodOf(area, hoodParam)
+  if (hoodParam && !hood) return json({ error: 'Unknown neighborhood' }, 400)
   const upstream = await fetch(ENDPOINT, {
     method: 'POST',
     headers: {
@@ -61,8 +64,8 @@ export default async (req: Request): Promise<Response> => {
       'X-Goog-FieldMask': FIELD_MASK,
     },
     body: JSON.stringify({
-      textQuery: `${q} in ${a.queryName}`,
-      locationRestriction: { rectangle: a.box },
+      textQuery: hood ? `${q} in ${hood.label}, ${a.queryName}` : `${q} in ${a.queryName}`,
+      locationRestriction: { rectangle: hood ? hoodBox(hood) : a.box },
       pageSize: 8,
     }),
   })

@@ -2,7 +2,7 @@
 // Every state has a way forward, so the invite never dead-ends.
 import { useEffect, useState } from 'react'
 import type { Category, Pick, SpotPick } from '../types'
-import { AREA_BY_ID, type AreaId } from '../lib/areas'
+import { placeLabel, type AreaId } from '../lib/areas'
 import { PLACES_ATTRIBUTION, searchPlaces, type Place } from '../lib/places'
 import { ArrowRight, Grain, Question, StepTop } from '../components/ui'
 
@@ -12,6 +12,7 @@ export function SpotStep({
   nav,
   pick,
   area,
+  hood,
   from,
   value,
   onDone,
@@ -20,6 +21,7 @@ export function SpotStep({
   cat: Category
   pick: Pick
   area: AreaId
+  hood?: string
   from: string
   value?: SpotPick
   onDone: (s: SpotPick) => void
@@ -30,19 +32,19 @@ export function SpotStep({
     value?.kind === 'place' ? value.place.id : value?.kind === 'surprise' ? 'surprise' : undefined,
   )
 
-  const areaName = AREA_BY_ID[area].label
+  const areaName = placeLabel(area, hood)
   const what = pick.value.toLowerCase()
 
   useEffect(() => {
     const ctrl = new AbortController()
     setState({ status: 'loading' })
-    searchPlaces(area, pick.value, ctrl.signal)
+    searchPlaces(area, pick.value, ctrl.signal, hood)
       .then((places) => setState({ status: 'ready', places }))
       .catch((err: unknown) => {
         if ((err as Error).name !== 'AbortError') setState({ status: 'error' })
       })
     return () => ctrl.abort()
-  }, [area, pick.value, attempt])
+  }, [area, hood, pick.value, attempt])
 
   if (state.status === 'error') {
     return (

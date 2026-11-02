@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { Answers, Invite, SpotPick } from '../types'
-import { AREA_BY_ID } from '../lib/areas'
+import { placeLabel } from '../lib/areas'
 import { acceptMessage, copyText, planLines, replyHref } from '../lib/share'
 import { sendToHim } from '../lib/notify'
 import { buildIcs, formatWhen, googleCalendarUrl, isWhenValue, whenToDate } from '../lib/when'
@@ -37,7 +37,7 @@ export function TicketScreen({
       title: `Date with ${inv.from}`,
       start: whenToDate(when),
       hours: 3,
-      location: place ? `${place.place.name}, ${place.place.address}` : answers.area ? AREA_BY_ID[answers.area].label : '',
+      location: place ? `${place.place.name}, ${place.place.address}` : answers.area ? placeLabel(answers.area, answers.hood) : '',
       details: planLines(inv, answers).join('\n'),
     }
     const ics = URL.createObjectURL(new Blob([buildIcs(event)], { type: 'text/calendar' }))
@@ -100,7 +100,7 @@ export function TicketScreen({
           {answers.area && (
             <div className="row">
               <b className="lbl">Where</b>
-              <span>{AREA_BY_ID[answers.area].label}</span>
+              <span>{placeLabel(answers.area, answers.hood)}</span>
             </div>
           )}
           {inv.categories.map((c) => {

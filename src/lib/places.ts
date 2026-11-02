@@ -20,13 +20,13 @@ export const PLACES_ATTRIBUTION = 'Places data from Google Maps'
 
 const cache = new Map<string, Promise<Place[]>>()
 
-export function searchPlaces(area: AreaId, query: string, signal?: AbortSignal): Promise<Place[]> {
+export function searchPlaces(area: AreaId, query: string, signal?: AbortSignal, hood?: string): Promise<Place[]> {
   const q = query.trim().toLowerCase()
-  const key = `${area}|${q}`
+  const key = `${area}|${hood ?? ''}|${q}`
   const hit = cache.get(key)
   if (hit) return hit
 
-  const req = fetch(`/api/places?area=${encodeURIComponent(area)}&q=${encodeURIComponent(q)}`, { signal })
+  const req = fetch(`/api/places?area=${encodeURIComponent(area)}${hood ? `&hood=${encodeURIComponent(hood)}` : ''}&q=${encodeURIComponent(q)}`, { signal })
     .then(async (res) => {
       if (!res.ok) throw new Error(`Places search failed (${res.status})`)
       const data = (await res.json()) as PlacesResult

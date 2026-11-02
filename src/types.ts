@@ -47,6 +47,8 @@ export type SpotPick =
 
 export interface Answers {
   area?: AreaId
+  /** Neighborhood id within the area; undefined means anywhere in it */
+  hood?: string
   picks: Record<string, Pick>
   spots: Record<string, SpotPick>
   note: string
