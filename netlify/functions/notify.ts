@@ -2,47 +2,12 @@
 // Only sends to the address signed into the invite, and only a few times per invite.
 import { createHash } from 'node:crypto'
 import { decodeInvite } from '../../src/lib/codec'
-import { hoodOf, isAreaId, placeLabel } from '../../src/lib/areas'
+import { placeLabel } from '../../src/lib/areas'
 import { buildIcs, formatWhen, googleCalendarUrl, isWhenValue, whenToDate, type CalendarEvent } from '../../src/lib/when'
-import type { Answers, Invite, Pick, SpotPick } from '../../src/types'
+import type { Answers, Invite, SpotPick } from '../../src/types'
+import { cleanPlan } from '../../src/lib/plan'
 import { buildGamePlan, type GamePlan } from '../lib/gameplan'
 import { handle, allow, esc, fromAddress, json, notifyPayload, readJson, sendEmail, verify } from '../lib/server'
-
-const s = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
-const coord = (v: unknown, max: number) => (typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= max ? v : 0)
-const MAPS_RE = /^https:\/\/(maps\.google\.com|www\.google\.com\/maps|goo\.gl\/maps|maps\.app\.goo\.gl)\//
-
-/** Her answers come from the browser, so rebuild them from scratch against the invite. */
-function cleanAnswers(inv: Invite, raw: unknown): Answers {
-  const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
-  const picksIn = (o.picks && typeof o.picks === 'object' ? o.picks : {}) as Record<string, unknown>
-  const spotsIn = (o.spots && typeof o.spots === 'object' ? o.spots : {}) as Record<string, unknown>
-  const picks: Record<string, Pick> = {}
-  const spots: Record<string, SpotPick> = {}
-  for (const c of inv.categories) {
-    const p = picksIn[c.id] as Record<string, unknown> | undefined
-    const value = s(p?.value, 40)
-    if (!value) continue
-    if (c.kind === 'when' && !isWhenValue(value)) continue
-    picks[c.id] = { value, custom: p?.custom === true }
-    const sp = spotsIn[c.id] as Record<string, unknown> | undefined
-    if (sp?.kind === 'surprise' || sp?.kind === 'tbd') spots[c.id] = { kind: sp.kind }
-    if (sp?.kind === 'place' && sp.place && typeof sp.place === 'object') {
-      const pl = sp.place as Record<string, unknown>
-      const name = s(pl.name, 80)
-      const mapsUrl = s(pl.mapsUrl, 300)
-      if (name) {
-        spots[c.id] = {
-          kind: 'place',
-          place: { id: s(pl.id, 120), name, address: s(pl.address, 140), lat: coord(pl.lat, 90), lng: coord(pl.lng, 180), mapsUrl: MAPS_RE.test(mapsUrl) ? mapsUrl : '' },
-        }
-      }
-    }
-  }
-  const area = isAreaId(o.area) ? o.area : undefined
-  const hood = area && typeof o.hood === 'string' && hoodOf(area, o.hood) ? o.hood : undefined
-  return { area, hood, picks, spots, note: s(o.note, 140) }
-}
 
 interface Row {
   label: string
@@ -59,7 +24,7 @@ function rowsFor(inv: Invite, a: Answers): Row[] {
     if (!pick) continue
     const spot = a.spots[c.id]
     if (spot?.kind === 'place') rows.push({ label: c.label, value: spot.place.name, sub: spot.place.address, link: spot.place.mapsUrl || undefined })
-    else if (spot?.kind === 'surprise') rows.push({ label: c.label, value: pick.value, sub: 'You pick the spot' })
+    else if (spot?.kind === 'left-to-him') rows.push({ label: c.label, value: pick.value, sub: 'You pick the spot' })
     else rows.push({ label: c.label, value: formatWhen(pick.value), sub: spot?.kind === 'tbd' ? 'Spot TBD' : undefined })
   }
   if (a.note) rows.push({ label: 'Her note', value: a.note })
@@ -106,7 +71,7 @@ export default handle(async (req: Request) => {
   const inviteKey = createHash('sha256').update(code).digest('hex').slice(0, 32)
   if (!(await allow(`notify:${inviteKey}`, 3, 86400))) return json({ error: 'Already sent. He’s got it.' }, 429)
 
-  const a = cleanAnswers(inv, body.answers)
+  const a = cleanPlan(inv, body.answers)
   const rows = rowsFor(inv, a)
   // AI game plan is a bonus: skipped if no key, and the email still goes out if it fails or is slow.
   const plan = process.env.ANTHROPIC_API_KEY ? await buildGamePlan(inv, a, 15_000) : null

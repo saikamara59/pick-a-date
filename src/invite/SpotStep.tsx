@@ -29,8 +29,8 @@ export function SpotStep({
 }) {
   const [state, setState] = useState<State>({ status: 'loading' })
   const [attempt, setAttempt] = useState(0)
-  const [sel, setSel] = useState<string | 'surprise' | undefined>(
-    value?.kind === 'place' ? value.place.id : value?.kind === 'surprise' ? 'surprise' : undefined,
+  const [sel, setSel] = useState<string | 'left-to-him' | undefined>(
+    value?.kind === 'place' ? value.place.id : value?.kind === 'left-to-him' ? 'left-to-him' : undefined,
   )
 
   const areaName = placeLabel(area, hood)
@@ -87,7 +87,7 @@ export function SpotStep({
               Nothing came up for {what} nearby. {from} can find one, or you can change your answer.
             </p>
             <div className="empty-actions">
-              <button type="button" className="btn btn-p wide" onClick={() => onDone({ kind: 'surprise' })}>
+              <button type="button" className="btn btn-p wide" onClick={() => onDone({ kind: 'left-to-him' })}>
                 Yes, {from} picks
               </button>
               <button type="button" className="btn btn-t" onClick={nav.onBack}>
@@ -107,7 +107,7 @@ export function SpotStep({
   const places = state.status === 'ready' ? state.places : []
 
   const next = () => {
-    if (sel === 'surprise') return onDone({ kind: 'surprise' })
+    if (sel === 'left-to-him') return onDone({ kind: 'left-to-him' })
     const place = places.find((p) => p.id === sel)
     if (place) onDone({ kind: 'place', place })
   }
@@ -155,13 +155,13 @@ export function SpotStep({
               </div>
             )
           })}
-          <div className={`spot last${sel === 'surprise' ? ' sel' : ''}`}>
+          <div className={`spot last${sel === 'left-to-him' ? ' sel' : ''}`}>
             <button
               type="button"
               className="spot-main"
               role="radio"
-              aria-checked={sel === 'surprise'}
-              onClick={() => setSel('surprise')}
+              aria-checked={sel === 'left-to-him'}
+              onClick={() => setSel('left-to-him')}
             >
               <b>
                 <span className="hl-text">Or… {from} picks</span>
@@ -176,7 +176,7 @@ export function SpotStep({
 
       <div className="dock">
         {loading ? (
-          <button type="button" className="btn btn-s wide" onClick={() => onDone({ kind: 'surprise' })}>
+          <button type="button" className="btn btn-s wide" onClick={() => onDone({ kind: 'left-to-him' })}>
             {from} picks, skip this
           </button>
         ) : (

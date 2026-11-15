@@ -164,7 +164,7 @@ export function Invite({ inv, code, serial }: { inv: InviteData; code: string; s
               const same = a.picks[step.cat.id]?.value === p.value
               const spots = { ...a.spots }
               if (!same) delete spots[step.cat.id]
-              if (isSurprise(p.value)) spots[step.cat.id] = { kind: 'surprise' }
+              if (isSurprise(p.value)) spots[step.cat.id] = { kind: 'left-to-him' }
               return { ...a, picks: { ...a.picks, [step.cat.id]: p }, spots }
             })
           }

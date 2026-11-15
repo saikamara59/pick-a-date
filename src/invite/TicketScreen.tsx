@@ -123,7 +123,7 @@ export function TicketScreen({
                 ) : (
                   <span>
                     {formatWhen(pick.value)}
-                    {spot?.kind === 'surprise' && <small>{inv.from} picks the spot</small>}
+                    {spot?.kind === 'left-to-him' && <small>{inv.from} picks the spot</small>}
                     {spot?.kind === 'tbd' && <small>Spot TBD</small>}
                   </span>
                 )}

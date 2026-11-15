@@ -42,7 +42,7 @@ export interface Pick {
 
 export type SpotPick =
   | { kind: 'place'; place: Place }
-  | { kind: 'surprise' } // he picks the spot
+  | { kind: 'left-to-him' } // she left the spot to him (Left to him)
   | { kind: 'tbd' } // Places was unavailable
 
 export interface Answers {
