@@ -18,28 +18,43 @@ export interface PlacesResult {
 /** Google requires this attribution wherever Places results are shown without a Google map. */
 export const PLACES_ATTRIBUTION = 'Places data from Google Maps'
 
+// Shared by every caller of the same search, so it is fetched without any one caller's signal:
+// if it were tied to a caller that then aborts (StrictMode cleanup), the next caller would get that AbortError.
 const cache = new Map<string, Promise<Place[]>>()
 
 export function searchPlaces(area: AreaId, query: string, signal?: AbortSignal, hood?: string): Promise<Place[]> {
   const q = query.trim().toLowerCase()
   const key = `${area}|${hood ?? ''}|${q}`
-  const hit = cache.get(key)
-  if (hit) return hit
-
-  const req = fetch(`/api/places?area=${encodeURIComponent(area)}${hood ? `&hood=${encodeURIComponent(hood)}` : ''}&q=${encodeURIComponent(q)}`, { signal })
-    .then(async (res) => {
-      if (!res.ok) throw new Error(`Places search failed (${res.status})`)
-      const data = (await res.json()) as PlacesResult
-      return data.places
-    })
-    .catch((err) => {
-      cache.delete(key)
-      throw err
-    })
-
-  cache.set(key, req)
-  return req
+  let req = cache.get(key)
+  if (!req) {
+    req = fetch(`/api/places?area=${encodeURIComponent(area)}${hood ? `&hood=${encodeURIComponent(hood)}` : ''}&q=${encodeURIComponent(q)}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`Places search failed (${res.status})`)
+        const data = (await res.json()) as PlacesResult
+        return data.places
+      })
+      .catch((err) => {
+        cache.delete(key)
+        throw err
+      })
+    cache.set(key, req)
+  }
+  return withSignal(req, signal)
 }
+
+/** Settle like `promise`, but reject with an AbortError as soon as this caller's `signal` aborts. */
+function withSignal<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise
+  if (signal.aborted) return Promise.reject(abortError(signal))
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(abortError(signal))
+    signal.addEventListener('abort', onAbort, { once: true })
+    promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', onAbort))
+  })
+}
+
+const abortError = (signal: AbortSignal) =>
+  signal.reason instanceof Error && signal.reason.name === 'AbortError' ? signal.reason : new DOMException('The operation was aborted.', 'AbortError')
 
 /** Same rule the places function enforces; strip anything else from typed answers. */
 const QUERY_OK = /^[a-z0-9 &'\-]{2,40}$/i
