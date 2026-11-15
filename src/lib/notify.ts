@@ -1,5 +1,6 @@
 // Browser side of email verification and "send it to him".
 import type { Answers } from '../types'
+import type { HerResponse } from './hisPlan'
 
 async function post<T>(path: string, body: unknown): Promise<T> {
   let res: Response
@@ -20,3 +21,7 @@ export const checkVerify = (email: string, code: string, exp: number, token: str
   post<{ email: string; sig: string }>('/api/verify/check', { email, code, exp, token })
 
 export const sendToHim = (code: string, answers: Answers) => post<{ ok: true }>('/api/notify', { code, answers })
+
+/** His-plan invite: tell him her answer. `previous` is her earlier answer, if she's changing it. */
+export const sendHerAnswer = (code: string, response: HerResponse, update: boolean, previous?: HerResponse['kind']) =>
+  post<{ ok: true }>('/api/notify', { code, response, update, previous })

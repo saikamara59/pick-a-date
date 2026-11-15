@@ -127,7 +127,7 @@ function fold(line: string): string {
 /** An .ics invite. With an organizer and attendee, Gmail and Apple Mail show RSVP / add buttons. */
 export function buildIcs(
   e: CalendarEvent,
-  opts: { method?: 'REQUEST' | 'PUBLISH'; organizer?: string; attendee?: { email: string; name: string } } = {},
+  opts: { method?: 'REQUEST' | 'PUBLISH' | 'CANCEL'; sequence?: number; organizer?: string; attendee?: { email: string; name: string } } = {},
 ): string {
   const end = new Date(e.start.getTime() + e.hours * 3600000)
   const lines = [
@@ -138,6 +138,7 @@ export function buildIcs(
     `METHOD:${opts.method ?? 'PUBLISH'}`,
     'BEGIN:VEVENT',
     `UID:${e.uid}`,
+    ...(opts.sequence !== undefined ? [`SEQUENCE:${opts.sequence}`] : []),
     `DTSTAMP:${icsStamp(new Date())}`,
     `DTSTART:${icsStamp(e.start)}`,
     `DTEND:${icsStamp(end)}`,
@@ -148,7 +149,7 @@ export function buildIcs(
     ...(opts.attendee
       ? [`ATTENDEE;CN=${icsText(opts.attendee.name)};ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:${opts.attendee.email}`]
       : []),
-    'STATUS:CONFIRMED',
+    opts.method === 'CANCEL' ? 'STATUS:CANCELLED' : 'STATUS:CONFIRMED',
     'END:VEVENT',
     'END:VCALENDAR',
   ]

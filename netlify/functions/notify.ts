@@ -1,35 +1,18 @@
-// POST /api/notify { code, answers } → emails him her picks with a calendar invite.
+// POST /api/notify { code, answers } → emails him her picks with a calendar invite (Her-pick invite).
+// POST /api/notify { code, response, update, previous } → emails him her answer to his Plan (His-plan invite).
 // Only sends to the address signed into the invite, and only a few times per invite.
 import { createHash } from 'node:crypto'
-import { decodeInvite } from '../../src/lib/codec'
+import { decodeInvite, isHisPlan, planWhen } from '../../src/lib/codec'
 import { placeLabel } from '../../src/lib/areas'
 import { buildIcs, formatWhen, googleCalendarUrl, isWhenValue, whenToDate, type CalendarEvent } from '../../src/lib/when'
-import type { Answers, Invite, SpotPick } from '../../src/types'
+import type { Answers, HisPlan, Invite, SpotPick } from '../../src/types'
 import { cleanPlan } from '../../src/lib/plan'
+import type { HerResponse } from '../../src/lib/hisPlan'
+import { cleanResponse, hisPlanHeadline, hisPlanRows, hisPlanSubject, rowsFor, type Row } from '../lib/hisPlanEmail'
 import { buildGamePlan, type GamePlan } from '../lib/gameplan'
 import { handle, allow, esc, fromAddress, json, notifyPayload, readJson, sendEmail, verify } from '../lib/server'
 
-interface Row {
-  label: string
-  value: string
-  sub?: string
-  link?: string
-}
-
-function rowsFor(inv: Invite, a: Answers): Row[] {
-  const rows: Row[] = []
-  if (a.area) rows.push({ label: 'Where', value: placeLabel(a.area, a.hood) })
-  for (const c of inv.categories) {
-    const pick = a.picks[c.id]
-    if (!pick) continue
-    const spot = a.spots[c.id]
-    if (spot?.kind === 'place') rows.push({ label: c.label, value: spot.place.name, sub: spot.place.address, link: spot.place.mapsUrl || undefined })
-    else if (spot?.kind === 'left-to-him') rows.push({ label: c.label, value: pick.value, sub: 'You pick the spot' })
-    else rows.push({ label: c.label, value: formatWhen(pick.value), sub: spot?.kind === 'tbd' ? 'Spot TBD' : undefined })
-  }
-  if (a.note) rows.push({ label: 'Her note', value: a.note })
-  return rows
-}
+const s = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
 
 function planHtml(p: GamePlan): string {
   const tip = (label: string, body: string) =>
@@ -68,17 +51,51 @@ export default handle(async (req: Request) => {
     return json({ error: 'This invite can’t send notifications.' }, 403)
   }
 
+  // Check her answer before spending one of the 3 sends.
+  const r: HerResponse | null = isHisPlan(inv) ? cleanResponse(inv, body.response) : null
+  if (isHisPlan(inv) && !r) return json({ error: 'That answer didn’t look right. Try again.' }, 400)
+
   const inviteKey = createHash('sha256').update(code).digest('hex').slice(0, 32)
   if (!(await allow(`notify:${inviteKey}`, 3, 86400))) return json({ error: 'Already sent. He’s got it.' }, 429)
 
-  const a = cleanPlan(inv, body.answers)
-  const rows = rowsFor(inv, a)
+  // His-plan: everything comes from his Plan in the link; the body only says which answer she gave.
+  let a: Answers
+  let rows: Row[]
+  let whenValue: string | undefined
+  let subject: string
+  let headline: string
+  let kicker = 'It’s a date'
+  let method: 'REQUEST' | 'CANCEL' = 'REQUEST'
+  let wantGamePlan = true
+  if (isHisPlan(inv) && r) {
+    const update = body.update === true
+    const prev = body.previous === 'in' || body.previous === 'counter' ? body.previous : null
+    a = inv.plan
+    rows = hisPlanRows(inv as Invite & { plan: HisPlan })
+    subject = hisPlanSubject(inv, r, update)
+    headline = hisPlanHeadline(inv, r)
+    if (r.kind === 'decline') {
+      kicker = 'Not this time'
+      wantGamePlan = false
+      // Cancel the event an earlier yes or Counter-time put on his calendar.
+      whenValue = prev ? planWhen(inv) : undefined
+      method = 'CANCEL'
+    } else {
+      if (r.kind === 'counter') kicker = 'New time?'
+      whenValue = r.kind === 'counter' ? r.when : planWhen(inv)
+    }
+  } else {
+    a = cleanPlan(inv, body.answers)
+    rows = rowsFor(inv, a)
+    const whenCat = inv.categories.find((c) => c.kind === 'when')
+    whenValue = whenCat ? a.picks[whenCat.id]?.value : undefined
+    subject = `${inv.to} picked your date${whenValue && isWhenValue(whenValue) ? ` · ${formatWhen(whenValue)}` : ''}`
+    headline = `${inv.to} picked the plan.`
+  }
   // AI game plan is a bonus: skipped if no key, and the email still goes out if it fails or is slow.
-  const plan = process.env.ANTHROPIC_API_KEY ? await buildGamePlan(inv, a, 15_000) : null
+  const plan = wantGamePlan && process.env.ANTHROPIC_API_KEY ? await buildGamePlan(inv, a, 15_000) : null
 
-  // Calendar event from the "when" pick, if there is one.
-  const whenCat = inv.categories.find((c) => c.kind === 'when')
-  const whenValue = whenCat ? a.picks[whenCat.id]?.value : undefined
+  // Calendar event from the "when" pick, if there is one. One UID per invite, so updates replace it.
   const firstPlace = Object.values(a.spots).find((x): x is Extract<SpotPick, { kind: 'place' }> => x.kind === 'place')
   const details = rows.map((r) => `${r.label}: ${r.value}${r.sub ? ` (${r.sub})` : ''}${r.link ? ` ${r.link}` : ''}`).join('\n')
   const event: CalendarEvent | null =
@@ -93,12 +110,11 @@ export default handle(async (req: Request) => {
         }
       : null
 
-  const gcal = event ? googleCalendarUrl(event) : null
-  const subject = `${inv.to} picked your date${whenValue && isWhenValue(whenValue) ? ` · ${formatWhen(whenValue)}` : ''}`
+  const gcal = event && method === 'REQUEST' ? googleCalendarUrl(event) : null
 
   const html = `<div style="font-family:system-ui,-apple-system,sans-serif;color:#22204a;max-width:520px">
-<p style="font-size:14px;color:#ff4f9e;font-weight:700;margin:0">It’s a date</p>
-<h1 style="font-size:28px;margin:6px 0 18px">${esc(inv.to)} picked the plan.</h1>
+<p style="font-size:14px;color:#ff4f9e;font-weight:700;margin:0">${esc(kicker)}</p>
+<h1 style="font-size:28px;margin:6px 0 18px">${esc(headline)}</h1>
 <table style="border-collapse:collapse;width:100%;font-size:15px">
 ${rows
   .map(
@@ -112,7 +128,7 @@ ${gcal ? `<p style="margin:24px 0 0"><a href="${esc(gcal)}" style="display:inlin
 ${plan ? planHtml(plan) : ''}
 </div>`
 
-  const text = [`${inv.to} picked the plan.`, '', ...rows.map((r) => `${r.label}: ${r.value}${r.sub ? ` (${r.sub})` : ''}${r.link ? ` ${r.link}` : ''}`), ...(gcal ? ['', `Add to Google Calendar: ${gcal}`] : []), ...(plan ? ['', planText(plan)] : [])].join('\n')
+  const text = [headline, '', ...rows.map((r) => `${r.label}: ${r.value}${r.sub ? ` (${r.sub})` : ''}${r.link ? ` ${r.link}` : ''}`), ...(gcal ? ['', `Add to Google Calendar: ${gcal}`] : []), ...(plan ? ['', planText(plan)] : [])].join('\n')
 
   try {
     await sendEmail({
@@ -125,7 +141,13 @@ ${plan ? planHtml(plan) : ''}
             {
               filename: 'date.ics',
               content: Buffer.from(
-                buildIcs(event, { method: 'REQUEST', organizer: fromAddress(), attendee: { email: inv.notify.email, name: inv.from } }),
+                buildIcs(event, {
+                  method,
+                  // Increases with every send so calendars replace the earlier event.
+                  ...(isHisPlan(inv) ? { sequence: Math.floor(Date.now() / 1000) } : {}),
+                  organizer: fromAddress(),
+                  attendee: { email: inv.notify.email, name: inv.from },
+                }),
               ).toString('base64'),
             },
           ]
