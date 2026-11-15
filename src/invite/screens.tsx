@@ -4,7 +4,7 @@ import type { Category, Invite, Pick } from '../types'
 import { AREAS, AREA_BY_ID, type AreaId } from '../lib/areas'
 import { isSurprise } from '../lib/presets'
 import { calendarMonths, dayParts, formatWhen, isWhenValue, parseTime, upcomingDays, WHEN_DAYS } from '../lib/when'
-import { ArrowRight, Grain, Question, Ring, StepTop } from '../components/ui'
+import { ArrowRight, Grain, Question, Ring, StepTop, Toggle } from '../components/ui'
 import { OptionIcon } from '../components/optionIcons'
 
 const SELECT_DELAY = 420
@@ -336,6 +336,54 @@ export function NoteStep({
         </button>
         <button type="button" className="btn btn-p" style={{ flex: 2 }} onClick={() => onDone(note.trim())}>
           Next
+          <ArrowRight />
+        </button>
+      </div>
+    </section>
+  )
+}
+
+/* ---------------- His Surprises (end of Plan the date) ---------------- */
+
+/** One "Keep it a surprise" switch per question he answered (never the When question). */
+export function SurpriseStep({
+  nav,
+  questions,
+  value,
+  onDone,
+}: {
+  nav: StepNav
+  questions: Category[]
+  value: string[]
+  onDone: (ids: string[]) => void
+}) {
+  const [ids, setIds] = useState(value)
+  return (
+    <section className="screen">
+      <Grain />
+      <StepTop {...nav} />
+      <Question eyebrow="Surprises · optional">Anything to keep a surprise?</Question>
+      <div className="pad">
+        <div className="finish">
+          {questions.map((c) => (
+            <div className="area-card" key={c.id}>
+              <div>
+                <b>{c.label}</b>
+                <span>She sees “it’s a surprise” instead of your pick.</span>
+              </div>
+              <Toggle
+                on={ids.includes(c.id)}
+                onChange={(on) => setIds(on ? [...ids, c.id] : ids.filter((x) => x !== c.id))}
+                label={`Keep ${c.label} a surprise`}
+              />
+            </div>
+          ))}
+        </div>
+        <p className="help">The day and time always show, so she knows when.</p>
+      </div>
+      <div className="actions">
+        <button type="button" className="btn btn-p wide" onClick={() => onDone(ids)}>
+          Done
           <ArrowRight />
         </button>
       </div>

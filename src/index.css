@@ -1744,3 +1744,11 @@ textarea.in {
   background: var(--accent);
   box-shadow: none;
 }
+
+/* "Plan the date": his walkthrough opens over the creator, full screen. */
+.plan-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  overflow-y: auto;
+}

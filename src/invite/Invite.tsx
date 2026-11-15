@@ -1,28 +1,11 @@
 // The invite she opens: intro → steps → ticket (or a kind "not this time").
 import { useMemo, useState } from 'react'
-import type { Answers, Category, Invite as InviteData, Pick, SpotPick } from '../types'
-import type { AreaId } from '../lib/areas'
-import { isSurprise } from '../lib/presets'
+import type { Answers, Invite as InviteData } from '../types'
 import { declineMessage, replyHref } from '../lib/share'
-import { AreaStep, ChoiceStep, DeclinedScreen, HoodStep, IntroScreen, NoteStep, WhenStep } from './screens'
-import { SpotStep } from './SpotStep'
+import { DeclinedScreen, IntroScreen } from './screens'
 import { TicketScreen } from './TicketScreen'
-
-type Step = { kind: 'area' } | { kind: 'hood' } | { kind: 'choice'; cat: Category } | { kind: 'spot'; cat: Category } | { kind: 'note' }
-
-/** The step list depends on her answers: "Surprise me" skips that category's spot step. */
-export function buildSteps(inv: InviteData, a: Answers): Step[] {
-  const steps: Step[] = []
-  if (inv.areas.length > 1) steps.push({ kind: 'area' })
-  steps.push({ kind: 'hood' })
-  for (const cat of inv.categories) {
-    steps.push({ kind: 'choice', cat })
-    const pick = a.picks[cat.id]
-    if (cat.spots && !(pick && isSurprise(pick.value))) steps.push({ kind: 'spot', cat })
-  }
-  if (inv.note) steps.push({ kind: 'note' })
-  return steps
-}
+import { buildSteps } from './steps'
+import { StepView } from './StepView'
 
 const emptyAnswers = (inv: InviteData): Answers => ({
   area: inv.areas.length === 1 ? inv.areas[0] : undefined,
@@ -103,102 +86,6 @@ export function Invite({ inv, code, serial }: { inv: InviteData; code: string; s
   const nav = { index: idx, total: steps.length, onBack: back }
   const key = `${idx}-${step.kind}-${'cat' in step ? step.cat.id : ''}`
 
-  switch (step.kind) {
-    case 'area':
-      return (
-        <AreaStep
-          key={key}
-          nav={nav}
-          areas={inv.areas}
-          value={answers.area}
-          onPick={(area: AreaId) =>
-            commit((a) => ({
-              ...a,
-              area,
-              // A new area means earlier spot picks no longer fit.
-              spots: area === a.area ? a.spots : {},
-              hood: area === a.area ? a.hood : undefined,
-            }))
-          }
-        />
-      )
-    case 'hood':
-      if (!answers.area) return null
-      return (
-        <HoodStep
-          key={key}
-          nav={nav}
-          area={answers.area}
-          value={answers.hood}
-          onPick={(hood) =>
-            commit((a) => ({
-              ...a,
-              hood,
-              // Spots were found for the old neighborhood.
-              spots: hood === a.hood ? a.spots : Object.fromEntries(Object.entries(a.spots).filter(([, v]) => v.kind !== 'place')),
-            }))
-          }
-        />
-      )
-    case 'choice':
-      if (step.cat.kind === 'when') {
-        return (
-          <WhenStep
-            key={key}
-            nav={nav}
-            cat={step.cat}
-            value={answers.picks[step.cat.id]?.value}
-            onPick={(value) => commit((a) => ({ ...a, picks: { ...a.picks, [step.cat.id]: { value, custom: false } } }))}
-          />
-        )
-      }
-      return (
-        <ChoiceStep
-          key={key}
-          nav={nav}
-          cat={step.cat}
-          from={inv.from}
-          value={answers.picks[step.cat.id]}
-          onPick={(p: Pick) =>
-            commit((a) => {
-              const same = a.picks[step.cat.id]?.value === p.value
-              const spots = { ...a.spots }
-              if (!same) delete spots[step.cat.id]
-              if (isSurprise(p.value)) spots[step.cat.id] = { kind: 'left-to-him' }
-              return { ...a, picks: { ...a.picks, [step.cat.id]: p }, spots }
-            })
-          }
-        />
-      )
-    case 'spot': {
-      const pick = answers.picks[step.cat.id]
-      if (!pick || !answers.area) {
-        // Shouldn't happen (choice and area come first), but never strand her.
-        return null
-      }
-      return (
-        <SpotStep
-          key={key}
-          nav={nav}
-          cat={step.cat}
-          pick={pick}
-          area={answers.area}
-          hood={answers.hood}
-          from={inv.from}
-          value={answers.spots[step.cat.id]}
-          onDone={(s: SpotPick) => commit((a) => ({ ...a, spots: { ...a.spots, [step.cat.id]: s } }))}
-        />
-      )
-    }
-    case 'note':
-      return (
-        <NoteStep
-          key={key}
-          nav={nav}
-          from={inv.from}
-          value={answers.note}
-          onDone={(note) => commit((a) => ({ ...a, note }))}
-        />
-      )
-  }
+  if (step.kind === 'surprises') return null
+  return <StepView key={key} inv={inv} step={step} nav={nav} answers={answers} commit={commit} />
 }
