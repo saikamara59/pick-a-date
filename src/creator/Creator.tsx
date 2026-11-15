@@ -1,14 +1,19 @@
 // The creator: he builds an invite and gets a link. The draft is saved in this browser.
 import { useEffect, useMemo, useState } from 'react'
-import type { Draft, ReplyKind, ThemeId } from '../types'
+import type { Draft, InviteKind, ReplyKind, ThemeId } from '../types'
 import { AREAS, type AreaId } from '../lib/areas'
-import { defaultDraft, isSurprise, SPOT_CATEGORY_IDS } from '../lib/presets'
-import { cleanReply, draftToInvite, encodeInvite, inviteUrl, serialFor } from '../lib/codec'
+import { DEFAULT_HIS_INTRO, DEFAULT_INTRO, defaultDraft, isSurprise, SPOT_CATEGORY_IDS } from '../lib/presets'
+import { draftToInvite, encodeInvite, inviteUrl, serialFor } from '../lib/codec'
+import { herRows } from '../lib/hisPlan'
 import { createShortLink, copyAsync } from '../lib/shortlink'
 import { buildSteps } from '../invite/steps'
 import { IntroScreen } from '../invite/screens'
-import { CopyIcon, Cross, Eye, LinkIcon, Plus, TicketLogo, Toggle } from '../components/ui'
+import { PlanTicket } from '../invite/PlanTicket'
+import { ArrowRight, CopyIcon, Cross, Eye, LinkIcon, Plus, TicketLogo, Toggle } from '../components/ui'
 import { NotifyField } from './NotifyField'
+import { linkProblem } from './linkProblem'
+import { ModeChooser } from './ModeChooser'
+import { PlanWalkthrough } from './PlanWalkthrough'
 
 const STORAGE_KEY = 'pick-a-date:draft'
 /** Bump when default options change, so saved drafts pick up new presets once. */
@@ -73,6 +78,7 @@ export function Creator() {
   const [linkNote, setLinkNote] = useState('')
   const [adding, setAdding] = useState<string | null>(null)
   const [newOption, setNewOption] = useState('')
+  const [planning, setPlanning] = useState(false)
 
   useEffect(() => {
     try {
@@ -92,19 +98,8 @@ export function Creator() {
   const url = inviteUrl(code)
   const steps = useMemo(() => buildSteps(invite, { picks: {}, spots: {}, note: '' }), [invite])
 
-  // What's still missing before the link is worth sending, first problem only.
-  const problem = (() => {
-    if (!draft.from.trim()) return 'Add your name to get a link.'
-    // With email set up, the text-me backup is optional, so only flag a half-typed number.
-    const backupEmpty = !draft.reply.value.trim()
-    if (draft.reply.kind !== 'none' && !(draft.notify?.sig && backupEmpty) && cleanReply(draft.reply.kind, draft.reply.value).kind === 'none')
-      return draft.reply.kind === 'sms' ? 'Add your full number so she can text you.' : 'Add your Instagram handle.'
-    if (!draft.notify?.sig && draft.reply.kind === 'none') return 'Add your email (or a number) so you hear back.'
-    if (!draft.to.trim()) return 'Add her name to get a link.'
-    if (draft.areas.length === 0) return 'Turn on at least one area.'
-    if (!draft.categories.some((c) => c.on && c.options.length >= 2)) return 'Turn on a question with 2+ options.'
-    return null
-  })()
+  const problem = linkProblem(draft)
+  const his = draft.kind === 'his-plan'
 
   const shortUrl = short?.code === code ? short.url : null
 
@@ -147,6 +142,45 @@ export function Creator() {
 
   const onCount = draft.categories.filter((c) => c.on).length
 
+  /** Switch modes, swapping the intro only if he never edited it. */
+  const setKind = (kind: InviteKind) =>
+    setDraft((d) => {
+      const fromDefault = kind === 'his-plan' ? DEFAULT_INTRO : DEFAULT_HIS_INTRO
+      const toDefault = kind === 'his-plan' ? DEFAULT_HIS_INTRO : DEFAULT_INTRO
+      return { ...d, kind, intro: d.intro === fromDefault ? toDefault : d.intro }
+    })
+
+  const named = { ...invite, to: invite.to || 'Her name', from: invite.from || 'You' }
+
+  if (!draft.kind) {
+    return (
+      <div className="creator t-riso">
+        <header className="c-header">
+          <div className="brand">
+            <TicketLogo />
+            <span>Pick a Date</span>
+          </div>
+        </header>
+        <ModeChooser onPick={setKind} />
+      </div>
+    )
+  }
+
+  if (planning) {
+    return (
+      <PlanWalkthrough
+        inv={named}
+        initial={invite.plan}
+        onCancel={() => setPlanning(false)}
+        onDone={(plan) => {
+          set('plan', plan)
+          setPlanning(false)
+          window.scrollTo(0, 0)
+        }}
+      />
+    )
+  }
+
   return (
     <div className="creator t-riso">
       <header className="c-header">
@@ -166,9 +200,40 @@ export function Creator() {
       <main className="c-main">
         <div className="c-form">
           <div>
-            <h1 className="c-title">Build the invite.</h1>
-            <p className="c-lede">She picks the plan. You just show up.</p>
+            <h1 className="c-title">{his ? 'Plan the date.' : 'Build the invite.'}</h1>
+            <p className="c-lede">{his ? 'You plan it. She just shows up.' : 'She picks the plan. You just show up.'}</p>
+            <div className="seg mode-switch" role="radiogroup" aria-label="Who plans the date">
+              {(
+                [
+                  ['her-pick', 'Let her pick'],
+                  ['his-plan', 'I’ll plan it'],
+                ] as const
+              ).map(([k, label]) => (
+                <button key={k} type="button" role="radio" aria-checked={draft.kind === k} onClick={() => setKind(k)}>
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {his && (
+            <section className="plan-card">
+              <div className="sh">
+                <h2>Your plan</h2>
+                <em>{invite.plan ? 'She sees this ticket.' : 'Pick the spot, the vibe and the time.'}</em>
+              </div>
+              {invite.plan && <PlanTicket inv={named} rows={herRows(invite)} serial={serialFor(code)} stamp="YOUR PLAN" />}
+              <div>
+                <button type="button" className="btn btn-p" onClick={() => setPlanning(true)}>
+                  {invite.plan ? 'Edit the plan' : 'Plan the date'}
+                  <ArrowRight />
+                </button>
+              </div>
+              {draft.plan && !invite.plan && (
+                <p className="help err">Your setup changed, so the plan needs another pass.</p>
+              )}
+            </section>
+          )}
 
           <section>
             <div className="sh">
@@ -252,7 +317,7 @@ export function Creator() {
             <div className="sh">
               <span>03</span>
               <h2>Where</h2>
-              <em>She picks one. Turn off anywhere you won’t go.</em>
+              <em>{his ? 'Where you’d plan it. Turn off anywhere you won’t go.' : 'She picks one. Turn off anywhere you won’t go.'}</em>
             </div>
             <div className="area-grid">
               {AREAS.map((a) => (
@@ -397,11 +462,17 @@ export function Creator() {
             Live preview · what she sees first
           </div>
           <div className={`phone t-${draft.theme}`} inert>
-            <IntroScreen
-              inv={{ ...invite, to: invite.to || 'Her name', from: invite.from || 'You' }}
-              serial={serialFor(code)}
-              stepCount={steps.length}
-            />
+            {his && invite.plan ? (
+              <section className="screen">
+                <div className="ticket-head">
+                  <span className="lbl kicker">{named.from} planned it</span>
+                  <h1 className="plan-title">Here’s the plan.</h1>
+                </div>
+                <PlanTicket inv={named} rows={herRows(invite)} serial={serialFor(code)} />
+              </section>
+            ) : (
+              <IntroScreen inv={named} serial={serialFor(code)} stepCount={steps.length} />
+            )}
           </div>
         </aside>
       </main>

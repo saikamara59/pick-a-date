@@ -182,9 +182,9 @@ export function SpotStep({
       )}
 
       <div className="dock">
-        {loading && allowLeftToHim ? (
-          <button type="button" className="btn btn-s wide" onClick={() => onDone({ kind: 'left-to-him' })}>
-            {from} picks, skip this
+        {loading ? (
+          <button type="button" className="btn btn-s wide" onClick={() => onDone({ kind: allowLeftToHim ? 'left-to-him' : 'tbd' })}>
+            {allowLeftToHim ? `${from} picks, skip this` : 'Skip, no spot for now'}
           </button>
         ) : (
           <button type="button" className="btn btn-p wide" disabled={!sel} onClick={next}>

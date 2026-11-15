@@ -2,6 +2,8 @@ import type { Draft } from '../types'
 import { AREAS } from './areas'
 
 export const DEFAULT_INTRO = 'I’d like to take you out. You pick the plan.'
+/** Intro for a His-plan invite */
+export const DEFAULT_HIS_INTRO = 'I planned something. You just show up.'
 
 /** Categories whose options can be searched as real places */
 export const SPOT_CATEGORY_IDS = new Set(['food', 'activity'])
