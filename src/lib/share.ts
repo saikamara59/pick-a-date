@@ -11,7 +11,7 @@ export function planLines(inv: Invite, a: Answers): string[] {
     const spot = a.spots[c.id]
     if (spot?.kind === 'place') {
       lines.push(`${c.label}: ${spot.place.name} (${spot.place.address}) ${spot.place.mapsUrl}`)
-    } else if (spot?.kind === 'surprise') {
+    } else if (spot?.kind === 'left-to-him') {
       lines.push(`${c.label}: ${pick.value}, you pick the spot`)
     } else {
       lines.push(`${c.label}: ${formatWhen(pick.value)}`)

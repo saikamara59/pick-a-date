@@ -16,6 +16,7 @@ export function SpotStep({
   hood,
   from,
   value,
+  allowLeftToHim = true,
   onDone,
 }: {
   nav: { index: number; total: number; onBack: () => void }
@@ -25,12 +26,14 @@ export function SpotStep({
   hood?: string
   from: string
   value?: SpotPick
+  /** False in his own walkthrough: he can't leave the spot to himself */
+  allowLeftToHim?: boolean
   onDone: (s: SpotPick) => void
 }) {
   const [state, setState] = useState<State>({ status: 'loading' })
   const [attempt, setAttempt] = useState(0)
-  const [sel, setSel] = useState<string | 'surprise' | undefined>(
-    value?.kind === 'place' ? value.place.id : value?.kind === 'surprise' ? 'surprise' : undefined,
+  const [sel, setSel] = useState<string | 'left-to-him' | undefined>(
+    value?.kind === 'place' ? value.place.id : value?.kind === 'left-to-him' ? 'left-to-him' : undefined,
   )
 
   const areaName = placeLabel(area, hood)
@@ -82,13 +85,15 @@ export function SpotStep({
         <Question eyebrow={`${pick.value} in ${areaName}`}>Pick the spot.</Question>
         <div className="pad">
           <div className="empty">
-            <p className="empty-title">Couldn’t find any. Want {from} to pick?</p>
+            <p className="empty-title">{allowLeftToHim ? `Couldn’t find any. Want ${from} to pick?` : 'Couldn’t find any.'}</p>
             <p className="empty-sub">
-              Nothing came up for {what} nearby. {from} can find one, or you can change your answer.
+              {allowLeftToHim
+                ? `Nothing came up for ${what} nearby. ${from} can find one, or you can change your answer.`
+                : `Nothing came up for ${what} nearby. Keep it without a spot, or change your answer.`}
             </p>
             <div className="empty-actions">
-              <button type="button" className="btn btn-p wide" onClick={() => onDone({ kind: 'surprise' })}>
-                Yes, {from} picks
+              <button type="button" className="btn btn-p wide" onClick={() => onDone({ kind: allowLeftToHim ? 'left-to-him' : 'tbd' })}>
+                {allowLeftToHim ? `Yes, ${from} picks` : 'Keep going without a spot'}
               </button>
               <button type="button" className="btn btn-t" onClick={nav.onBack}>
                 Change my answer
@@ -107,7 +112,7 @@ export function SpotStep({
   const places = state.status === 'ready' ? state.places : []
 
   const next = () => {
-    if (sel === 'surprise') return onDone({ kind: 'surprise' })
+    if (sel === 'left-to-him') return onDone({ kind: 'left-to-him' })
     const place = places.find((p) => p.id === sel)
     if (place) onDone({ kind: 'place', place })
   }
@@ -155,13 +160,14 @@ export function SpotStep({
               </div>
             )
           })}
-          <div className={`spot last${sel === 'surprise' ? ' sel' : ''}`}>
+          {allowLeftToHim && (
+          <div className={`spot last${sel === 'left-to-him' ? ' sel' : ''}`}>
             <button
               type="button"
               className="spot-main"
               role="radio"
-              aria-checked={sel === 'surprise'}
-              onClick={() => setSel('surprise')}
+              aria-checked={sel === 'left-to-him'}
+              onClick={() => setSel('left-to-him')}
             >
               <b>
                 <span className="hl-text">Or… {from} picks</span>
@@ -171,13 +177,14 @@ export function SpotStep({
               </span>
             </button>
           </div>
+          )}
         </div>
       )}
 
       <div className="dock">
         {loading ? (
-          <button type="button" className="btn btn-s wide" onClick={() => onDone({ kind: 'surprise' })}>
-            {from} picks, skip this
+          <button type="button" className="btn btn-s wide" onClick={() => onDone({ kind: allowLeftToHim ? 'left-to-him' : 'tbd' })}>
+            {allowLeftToHim ? `${from} picks, skip this` : 'Skip, no spot for now'}
           </button>
         ) : (
           <button type="button" className="btn btn-p wide" disabled={!sel} onClick={next}>

@@ -1,10 +1,10 @@
 // Invite screens that don't fetch anything: intro poster, area, choice, note, endings.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Category, Invite, Pick } from '../types'
 import { AREAS, AREA_BY_ID, type AreaId } from '../lib/areas'
 import { isSurprise } from '../lib/presets'
 import { calendarMonths, dayParts, formatWhen, isWhenValue, parseTime, upcomingDays, WHEN_DAYS } from '../lib/when'
-import { ArrowRight, Grain, Question, Ring, StepTop } from '../components/ui'
+import { ArrowRight, Grain, Question, Ring, StepTop, Toggle } from '../components/ui'
 import { OptionIcon } from '../components/optionIcons'
 
 const SELECT_DELAY = 420
@@ -17,17 +17,20 @@ export function IntroScreen({
   stepCount,
   onStart,
   onDecline,
+  startLabel,
 }: {
   inv: Invite
   serial: string
   stepCount: number
   onStart?: () => void
   onDecline?: () => void
+  /** His-plan invite: "See the plan" instead of the theme's default */
+  startLabel?: string
 }) {
   const actions = (label: string) => (
     <div className="actions">
       <button type="button" className="btn btn-p wide" onClick={onStart}>
-        {label}
+        {startLabel ?? label}
         {inv.theme !== 'stationery' && <ArrowRight />}
       </button>
       <button type="button" className="btn btn-t" onClick={onDecline}>
@@ -109,9 +112,7 @@ export function IntroScreen({
         <div className="intro-foot">
           <span className="lbl">From {inv.from}</span>
           <span className="lbl muted">NYC · NJ</span>
-          <span className="lbl muted push">
-            {stepCount} steps · 2 min
-          </span>
+          <span className="lbl muted push">{inv.plan ? 'Plan’s ready' : `${stepCount} steps · 2 min`}</span>
         </div>
       </div>
       {actions('Let’s see it')}
@@ -343,6 +344,54 @@ export function NoteStep({
   )
 }
 
+/* ---------------- His Surprises (end of Plan the date) ---------------- */
+
+/** One "Keep it a surprise" switch per question he answered (never the When question). */
+export function SurpriseStep({
+  nav,
+  questions,
+  value,
+  onDone,
+}: {
+  nav: StepNav
+  questions: Category[]
+  value: string[]
+  onDone: (ids: string[]) => void
+}) {
+  const [ids, setIds] = useState(value)
+  return (
+    <section className="screen">
+      <Grain />
+      <StepTop {...nav} />
+      <Question eyebrow="Surprises · optional">Anything to keep a surprise?</Question>
+      <div className="pad">
+        <div className="finish">
+          {questions.map((c) => (
+            <div className="area-card" key={c.id}>
+              <div>
+                <b>{c.label}</b>
+                <span>She sees “it’s a surprise” instead of your pick.</span>
+              </div>
+              <Toggle
+                on={ids.includes(c.id)}
+                onChange={(on) => setIds(on ? [...ids, c.id] : ids.filter((x) => x !== c.id))}
+                label={`Keep ${c.label} a surprise`}
+              />
+            </div>
+          ))}
+        </div>
+        <p className="help">The day and time always show, so she knows when.</p>
+      </div>
+      <div className="actions">
+        <button type="button" className="btn btn-p wide" onClick={() => onDone(ids)}>
+          Done
+          <ArrowRight />
+        </button>
+      </div>
+    </section>
+  )
+}
+
 /* ---------------- Endings ---------------- */
 
 export function DeclinedScreen({ inv, letHimKnow }: { inv: Invite; letHimKnow: string | null }) {
@@ -394,18 +443,29 @@ export function WhenStep({
   nav,
   cat,
   value,
+  disabledValue,
+  nextLabel = 'Next',
+  busy = false,
+  footer,
   onPick,
 }: {
   nav: StepNav
   cat: Category
   value?: string
+  /** A slot she can't pick (his own, when she's asking for a Counter-time) */
+  disabledValue?: string
+  nextLabel?: string
+  /** While her answer is sending: block a second tap */
+  busy?: boolean
+  /** Shown under the button, e.g. a send error, so it's next to where she tapped */
+  footer?: ReactNode
   onPick: (value: string) => void
 }) {
   const days = upcomingDays(WHEN_DAYS)
   const times = cat.options.map((t) => ({ label: t, at: parseTime(t) })).filter((t) => t.at)
   const [day, setDay] = useState<string | undefined>(value && isWhenValue(value) ? value.slice(0, 10) : undefined)
   const [time, setTime] = useState<string | undefined>(value && isWhenValue(value) ? value.slice(11) : undefined)
-  const done = day && time
+  const done = day && time && `${day}T${time}` !== disabledValue
 
   return (
     <section className="screen">
@@ -455,8 +515,18 @@ export function WhenStep({
           {times.map(({ label, at }) => {
             const v = `${String(at!.h).padStart(2, '0')}:${String(at!.m).padStart(2, '0')}`
             const on = time === v
+            const off = !!day && `${day}T${v}` === disabledValue
             return (
-              <button key={label} type="button" role="radio" aria-checked={on} className={`time${on ? ' sel' : ''}`} onClick={() => setTime(v)}>
+              <button
+                key={label}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                disabled={off}
+                title={off ? 'That’s the time he picked' : undefined}
+                className={`time${on ? ' sel' : ''}`}
+                onClick={() => setTime(v)}
+              >
                 {label}
               </button>
             )
@@ -465,10 +535,11 @@ export function WhenStep({
         {done && <p className="when-preview">{formatWhen(`${day}T${time}`)}</p>}
       </div>
       <div className="actions">
-        <button type="button" className="btn btn-p wide" disabled={!done} onClick={() => done && onPick(`${day}T${time}`)}>
-          Next
+        <button type="button" className="btn btn-p wide" disabled={!done || busy} onClick={() => done && !busy && onPick(`${day}T${time}`)}>
+          {nextLabel}
           <ArrowRight />
         </button>
+        {footer}
       </div>
     </section>
   )

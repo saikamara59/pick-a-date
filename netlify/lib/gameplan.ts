@@ -57,7 +57,7 @@ export async function buildGamePlan(inv: Invite, a: Answers, timeoutMs = 15_000)
     else if (spot?.kind === 'place') {
       lines.push(`${c.label}: ${pick.value} at ${spot.place.name}, ${spot.place.address}`)
       stops.push({ label: c.label, spot })
-    } else if (spot?.kind === 'surprise') lines.push(`${c.label}: ${pick.value} (he picks the exact spot)`)
+    } else if (spot?.kind === 'left-to-him') lines.push(`${c.label}: ${pick.value} (he picks the exact spot)`)
     else lines.push(`${c.label}: ${pick.value}`)
   }
 
