@@ -71,7 +71,7 @@ export default handle(async (req: Request) => {
     const update = body.update === true
     const prev = body.previous === 'in' || body.previous === 'counter' ? body.previous : null
     a = inv.plan
-    rows = hisPlanRows(inv as Invite & { plan: HisPlan })
+    rows = hisPlanRows(inv as Invite & { plan: HisPlan }, r.kind === 'counter' ? r.when : undefined)
     subject = hisPlanSubject(inv, r, update)
     headline = hisPlanHeadline(inv, r)
     if (r.kind === 'decline') {
@@ -81,7 +81,11 @@ export default handle(async (req: Request) => {
       whenValue = prev ? planWhen(inv) : undefined
       method = 'CANCEL'
     } else {
-      if (r.kind === 'counter') kicker = 'New time?'
+      if (r.kind === 'counter') {
+        kicker = 'New time?'
+        // The game plan would be timed for his original night; skip it until they settle the time.
+        wantGamePlan = false
+      }
       whenValue = r.kind === 'counter' ? r.when : planWhen(inv)
     }
   } else {

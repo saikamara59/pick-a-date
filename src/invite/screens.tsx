@@ -1,5 +1,5 @@
 // Invite screens that don't fetch anything: intro poster, area, choice, note, endings.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Category, Invite, Pick } from '../types'
 import { AREAS, AREA_BY_ID, type AreaId } from '../lib/areas'
 import { isSurprise } from '../lib/presets'
@@ -445,6 +445,8 @@ export function WhenStep({
   value,
   disabledValue,
   nextLabel = 'Next',
+  busy = false,
+  footer,
   onPick,
 }: {
   nav: StepNav
@@ -453,6 +455,10 @@ export function WhenStep({
   /** A slot she can't pick (his own, when she's asking for a Counter-time) */
   disabledValue?: string
   nextLabel?: string
+  /** While her answer is sending: block a second tap */
+  busy?: boolean
+  /** Shown under the button, e.g. a send error, so it's next to where she tapped */
+  footer?: ReactNode
   onPick: (value: string) => void
 }) {
   const days = upcomingDays(WHEN_DAYS)
@@ -529,10 +535,11 @@ export function WhenStep({
         {done && <p className="when-preview">{formatWhen(`${day}T${time}`)}</p>}
       </div>
       <div className="actions">
-        <button type="button" className="btn btn-p wide" disabled={!done} onClick={() => done && onPick(`${day}T${time}`)}>
+        <button type="button" className="btn btn-p wide" disabled={!done || busy} onClick={() => done && !busy && onPick(`${day}T${time}`)}>
           {nextLabel}
           <ArrowRight />
         </button>
+        {footer}
       </div>
     </section>
   )

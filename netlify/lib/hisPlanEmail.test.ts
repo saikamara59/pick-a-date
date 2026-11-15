@@ -31,3 +31,13 @@ test('his-plan email ignores body answers: rows come from his Plan, Surprises sh
   expect(rows.find((r) => r.label === 'Food')).toMatchObject({ value: 'Via Carota', sub: '51 Grove St · Surprise for her' })
   expect(rows.find((r) => r.label === 'Vibe')).toMatchObject({ value: 'Chill', sub: 'Surprise for her' })
 })
+
+test('server rejects I’m in once the date has passed', () => {
+  expect(cleanResponse(inv, { kind: 'in' }, new Date('2026-11-22T17:00:00Z'))).toBeNull()
+  expect(cleanResponse(inv, { kind: 'decline' }, new Date('2026-11-22T17:00:00Z'))).toEqual({ kind: 'decline' })
+})
+
+test('counter email shows her time in the When row', () => {
+  const when = hisPlanRows(inv, '2026-11-19T20:00').find((r) => r.label === 'When')!
+  expect(when).toEqual({ label: 'When', value: 'Thu, Nov 19 · 8 PM', sub: 'She asked for this. You picked Fri, Nov 20 · 7 PM.' })
+})

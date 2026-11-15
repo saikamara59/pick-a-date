@@ -1,6 +1,6 @@
 // The His-plan invite she opens: intro → his plan as a ticket → I'm in / Different time / Can't make it.
 // Each answer emails him right away. Her phone remembers her last answer for this invite.
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { HisPlan, Invite } from '../types'
 import { planWhen } from '../lib/codec'
 import {
@@ -32,6 +32,8 @@ export function HisPlanInvite({ inv, code, serial }: { inv: Invite & { plan: His
   const [answer, setAnswer] = useState<HerResponse | null>(() => loadHerAnswer(code))
   const [screen, setScreen] = useState<Screen>(() => (answer ? 'sent' : 'intro'))
   const [sending, setSending] = useState(false)
+  // State updates land after the render, so a fast double tap would see sending=false twice.
+  const inFlight = useRef(false)
   const [error, setError] = useState('')
   const [changing, setChanging] = useState(false)
   /** The answer she last tried to send, so a failed send can fall back to texting him that answer */
@@ -48,6 +50,8 @@ export function HisPlanInvite({ inv, code, serial }: { inv: Invite & { plan: His
 
   /** The tap is the answer: send it now. Without his email, it's saved and she texts him instead. */
   const answerWith = async (r: HerResponse) => {
+    if (inFlight.current) return
+    inFlight.current = true
     setSending(true)
     setError('')
     setTried(r)
@@ -60,6 +64,7 @@ export function HisPlanInvite({ inv, code, serial }: { inv: Invite & { plan: His
     } catch (e) {
       setError((e as Error).message)
     } finally {
+      inFlight.current = false
       setSending(false)
     }
   }
@@ -105,21 +110,22 @@ export function HisPlanInvite({ inv, code, serial }: { inv: Invite & { plan: His
 
   if (screen === 'counter') {
     return (
-      <>
-        {error && (
-          <div className="pad">
-            {errorLine}
-            {tried && textHim(tried)}
-          </div>
-        )}
-        <WhenStep
+      <WhenStep
         nav={{ index: 0, total: 1, onBack: () => go(answer && !changing ? 'sent' : 'plan') }}
         cat={{ ...whenCat, question: 'When works better?' }}
         disabledValue={planWhen(inv)}
         nextLabel={sending ? 'Sending…' : `Send to ${inv.from}`}
+        busy={sending}
+        footer={
+          error && (
+            <>
+              {errorLine}
+              {tried && textHim(tried)}
+            </>
+          )
+        }
         onPick={(when) => void answerWith({ kind: 'counter', when })}
-        />
-      </>
+      />
     )
   }
 

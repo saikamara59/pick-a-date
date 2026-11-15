@@ -31,3 +31,13 @@ test('his-plan does not need 2+ options', () => {
   const one = CATS.map((c) => ({ ...c, on: true, options: c.kind === 'when' ? ['7 PM'] : c.options.slice(0, 1) }))
   expect(linkProblem(hisDraft({ categories: one }))).toBeNull()
 })
+
+test('his-plan with When off says When is required', () => {
+  const noWhen = CATS.map((c) => ({ ...c, on: c.kind !== 'when' }))
+  expect(linkProblem(hisDraft({ categories: noWhen }))).toBe('Turn on When and add a time. She needs to know when.')
+})
+
+test('his-plan with a passed date asks for a new day', () => {
+  expect(linkProblem(hisDraft(), new Date('2026-11-15T17:00:00Z'))).toBeNull()
+  expect(linkProblem(hisDraft(), new Date('2026-11-22T17:00:00Z'))).toBe('Your date has passed. Plan a new day.')
+})
