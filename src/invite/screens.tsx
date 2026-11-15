@@ -17,17 +17,20 @@ export function IntroScreen({
   stepCount,
   onStart,
   onDecline,
+  startLabel,
 }: {
   inv: Invite
   serial: string
   stepCount: number
   onStart?: () => void
   onDecline?: () => void
+  /** His-plan invite: "See the plan" instead of the theme's default */
+  startLabel?: string
 }) {
   const actions = (label: string) => (
     <div className="actions">
       <button type="button" className="btn btn-p wide" onClick={onStart}>
-        {label}
+        {startLabel ?? label}
         {inv.theme !== 'stationery' && <ArrowRight />}
       </button>
       <button type="button" className="btn btn-t" onClick={onDecline}>
@@ -109,9 +112,7 @@ export function IntroScreen({
         <div className="intro-foot">
           <span className="lbl">From {inv.from}</span>
           <span className="lbl muted">NYC · NJ</span>
-          <span className="lbl muted push">
-            {stepCount} steps · 2 min
-          </span>
+          <span className="lbl muted push">{inv.plan ? 'Plan’s ready' : `${stepCount} steps · 2 min`}</span>
         </div>
       </div>
       {actions('Let’s see it')}
@@ -442,18 +443,23 @@ export function WhenStep({
   nav,
   cat,
   value,
+  disabledValue,
+  nextLabel = 'Next',
   onPick,
 }: {
   nav: StepNav
   cat: Category
   value?: string
+  /** A slot she can't pick (his own, when she's asking for a Counter-time) */
+  disabledValue?: string
+  nextLabel?: string
   onPick: (value: string) => void
 }) {
   const days = upcomingDays(WHEN_DAYS)
   const times = cat.options.map((t) => ({ label: t, at: parseTime(t) })).filter((t) => t.at)
   const [day, setDay] = useState<string | undefined>(value && isWhenValue(value) ? value.slice(0, 10) : undefined)
   const [time, setTime] = useState<string | undefined>(value && isWhenValue(value) ? value.slice(11) : undefined)
-  const done = day && time
+  const done = day && time && `${day}T${time}` !== disabledValue
 
   return (
     <section className="screen">
@@ -503,8 +509,18 @@ export function WhenStep({
           {times.map(({ label, at }) => {
             const v = `${String(at!.h).padStart(2, '0')}:${String(at!.m).padStart(2, '0')}`
             const on = time === v
+            const off = !!day && `${day}T${v}` === disabledValue
             return (
-              <button key={label} type="button" role="radio" aria-checked={on} className={`time${on ? ' sel' : ''}`} onClick={() => setTime(v)}>
+              <button
+                key={label}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                disabled={off}
+                title={off ? 'That’s the time he picked' : undefined}
+                className={`time${on ? ' sel' : ''}`}
+                onClick={() => setTime(v)}
+              >
                 {label}
               </button>
             )
@@ -514,7 +530,7 @@ export function WhenStep({
       </div>
       <div className="actions">
         <button type="button" className="btn btn-p wide" disabled={!done} onClick={() => done && onPick(`${day}T${time}`)}>
-          Next
+          {nextLabel}
           <ArrowRight />
         </button>
       </div>

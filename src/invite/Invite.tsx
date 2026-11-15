@@ -6,6 +6,8 @@ import { DeclinedScreen, IntroScreen } from './screens'
 import { TicketScreen } from './TicketScreen'
 import { buildSteps } from './steps'
 import { StepView } from './StepView'
+import { HisPlanInvite } from './HisPlanInvite'
+import { isHisPlan } from '../lib/codec'
 
 const emptyAnswers = (inv: InviteData): Answers => ({
   area: inv.areas.length === 1 ? inv.areas[0] : undefined,
@@ -17,6 +19,11 @@ const emptyAnswers = (inv: InviteData): Answers => ({
 type Screen = 'intro' | 'steps' | 'ticket' | 'declined'
 
 export function Invite({ inv, code, serial }: { inv: InviteData; code: string; serial: string }) {
+  if (isHisPlan(inv)) return <HisPlanInvite inv={inv} code={code} serial={serial} />
+  return <HerPickInvite inv={inv} code={code} serial={serial} />
+}
+
+function HerPickInvite({ inv, code, serial }: { inv: InviteData; code: string; serial: string }) {
   const [screen, setScreen] = useState<Screen>('intro')
   const [answers, setAnswers] = useState<Answers>(() => emptyAnswers(inv))
   const [idx, setIdx] = useState(0)
