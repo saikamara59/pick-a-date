@@ -3,6 +3,8 @@ import type { Place } from './lib/places'
 
 export type ThemeId = 'riso' | 'stationery' | 'night'
 export type ReplyKind = 'sms' | 'ig' | 'none'
+/** Her-pick: he offers options, she builds the Plan. His-plan: he sends a finished Plan. */
+export type InviteKind = 'her-pick' | 'his-plan'
 
 export interface Category {
   id: string
@@ -28,11 +30,16 @@ export interface Invite {
   theme: ThemeId
   /** His verified email; sig is the server's signature over it, so the link can't be pointed elsewhere */
   notify?: { email: string; sig: string }
+  /** Present only on a His-plan invite: his finished Plan */
+  plan?: HisPlan
 }
 
 /** What the creator edits. Categories can be switched off without losing their options. */
-export interface Draft extends Omit<Invite, 'v' | 'categories'> {
+export interface Draft extends Omit<Invite, 'v' | 'categories' | 'plan'> {
   categories: (Category & { on: boolean })[]
+  /** Undefined until he picks a mode on his first visit */
+  kind?: InviteKind
+  plan?: HisPlan
 }
 
 export interface Pick {
@@ -52,4 +59,9 @@ export interface Answers {
   picks: Record<string, Pick>
   spots: Record<string, SpotPick>
   note: string
+}
+
+/** His Plan. `surprises` lists question ids he keeps hidden from her (never the When question). */
+export interface HisPlan extends Answers {
+  surprises: string[]
 }

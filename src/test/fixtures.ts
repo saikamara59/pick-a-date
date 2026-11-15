@@ -27,3 +27,19 @@ export const viaCarota = {
   lng: -74.004,
   mapsUrl: 'https://maps.google.com/?cid=1',
 }
+
+/** His Plan: Via Carota (a Surprise), Chill (a Surprise), Fri Nov 20 2026 at 7 PM, West Village. */
+export const hisPlan = {
+  area: 'manhattan' as const,
+  hood: 'west-village',
+  picks: {
+    food: { value: 'Sushi', custom: false },
+    vibe: { value: 'Chill', custom: false },
+    when: { value: '2026-11-20T19:00', custom: false },
+  },
+  spots: { food: { kind: 'place' as const, place: viaCarota } },
+  note: '',
+  surprises: ['food', 'vibe'],
+}
+
+export const hisPlanInvite: Invite = { ...herPickInvite, plan: hisPlan }

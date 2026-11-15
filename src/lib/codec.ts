@@ -1,7 +1,8 @@
 // Invites live entirely in the link: JSON -> lz-string -> URL-safe text.
 // Anything decoded from a link is untrusted, so every field is re-validated here.
 import LZ from 'lz-string'
-import type { Category, Draft, Invite, ReplyKind, ThemeId } from '../types'
+import type { Category, Draft, HisPlan, Invite, ReplyKind, ThemeId } from '../types'
+import { cleanPlan } from './plan'
 import { isAreaId, type AreaId } from './areas'
 import { parseTime } from './when'
 
@@ -62,8 +63,35 @@ function cleanNotify(v: unknown): Invite['notify'] {
   return EMAIL_RE.test(email) && SIG_RE.test(sig) ? { email, sig } : undefined
 }
 
+export const isHisPlan = (inv: Invite): inv is Invite & { plan: HisPlan } => !!inv.plan
+
+/** The day and time of his Plan, e.g. "2026-11-20T19:00". */
+export function planWhen(inv: Invite): string | undefined {
+  const cat = inv.categories.find((c) => c.kind === 'when')
+  return cat ? inv.plan?.picks[cat.id]?.value : undefined
+}
+
+/**
+ * Validate his Plan against the invite's own setup. Undefined unless it has an area he allows
+ * and a day/time at one of his listed times, so she never sees half a plan.
+ */
+export function cleanHisPlan(inv: Omit<Invite, 'plan'>, raw: unknown): HisPlan | undefined {
+  const a = cleanPlan(inv, raw)
+  if (!a.area || !inv.areas.includes(a.area)) return undefined
+  const whenCat = inv.categories.find((c) => c.kind === 'when')
+  const when = whenCat ? a.picks[whenCat.id]?.value : undefined
+  if (!whenCat || !when) return undefined
+  const slot = when.slice(11)
+  const times = whenCat.options.map(parseTime).filter((t) => t !== null)
+  if (!times.some((t) => `${String(t.h).padStart(2, '0')}:${String(t.m).padStart(2, '0')}` === slot)) return undefined
+  const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+  const ids = Array.isArray(o.surprises) ? o.surprises : []
+  const surprises = inv.categories.filter((c) => c.kind !== 'when' && a.picks[c.id] && ids.includes(c.id)).map((c) => c.id)
+  return { ...a, note: '', surprises }
+}
+
 export function draftToInvite(d: Draft): Invite {
-  return {
+  const inv: Invite = {
     v: 1,
     to: d.to.trim(),
     from: d.from.trim(),
@@ -77,6 +105,8 @@ export function draftToInvite(d: Draft): Invite {
     theme: d.theme,
     ...(d.notify?.sig ? { notify: { email: d.notify.email, sig: d.notify.sig } } : {}),
   }
+  const plan = d.kind === 'his-plan' && d.plan ? cleanHisPlan(inv, d.plan) : undefined
+  return plan ? { ...inv, plan } : inv
 }
 
 export function encodeInvite(inv: Invite): string {
@@ -103,7 +133,7 @@ export function decodeInvite(code: string): Invite | null {
       : []
     if (areas.length === 0 || categories.length === 0) return null
 
-    return {
+    const inv: Invite = {
       v: 1,
       to,
       from,
@@ -115,6 +145,10 @@ export function decodeInvite(code: string): Invite | null {
       theme: cleanTheme(j.theme),
       ...(cleanNotify(j.notify) ? { notify: cleanNotify(j.notify) } : {}),
     }
+    if (j.plan === undefined) return inv
+    // A link that claims to carry his Plan but fails validation is broken, not a Her-pick invite.
+    const plan = cleanHisPlan(inv, j.plan)
+    return plan ? { ...inv, plan } : null
   } catch {
     return null
   }
